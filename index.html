@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BINGO PRO: CLEAN MASTER</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Noto+Sans+KR:wght@300;700&display=swap" rel="stylesheet">
+    <style>
+        /* ✨ 스크롤바 숨기기 */
+        ::-webkit-scrollbar { display: none; }
+        body { 
+            -ms-overflow-style: none; scrollbar-width: none; 
+            font-family: 'Noto Sans KR', sans-serif; 
+            background: radial-gradient(circle at center, #1e293b, #0f172a); 
+            color: #f8fafc; overflow-x: hidden; min-height: 100vh; 
+        }
+        .font-game { font-family: 'Orbitron', sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .tab-active { color: #3b82f6 !important; text-shadow: 0 0 10px rgba(59, 130, 246, 0.8); }
+        .tab-line { height: 2px; width: 0; background: #3b82f6; transition: all 0.3s ease; margin: 0 auto; box-shadow: 0 0 10px #3b82f6; }
+        .active-line { width: 100%; }
+        .bingo-cell { transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); background: rgba(255,255,255,0.03); }
+        .bingo-cell.marked { background: linear-gradient(135deg, #2563eb, #7c3aed); border-color: #60a5fa; transform: scale(0.9) rotate(2deg); color: white; box-shadow: 0 0 15px rgba(124, 58, 237, 0.5); }
+        @keyframes bingo-win-glow { 0%, 100% { box-shadow: 0 0 20px #fbbf24; transform: scale(0.95) rotate(2deg); } 50% { box-shadow: 0 0 40px #fff7ed; transform: scale(1.0); } }
+        .win-cell { background: linear-gradient(135deg, #fbbf24, #f59e0b) !important; animation: bingo-win-glow 0.8s infinite; z-index: 20; color: #451a03 !important; border: 2px solid #fff !important; }
+        .rolling { animation: slot-scroll 0.1s infinite alternate; }
+        @keyframes slot-scroll { from { opacity: 0.5; transform: translateY(-3px); } to { opacity: 1; transform: translateY(3px); } }
+    </style>
+</head>
+<body>
+
+    <nav class="fixed top-0 w-full z-50 bg-black/40 backdrop-blur-xl border-b border-white/10">
+        <div class="flex justify-center items-center max-w-md mx-auto h-16">
+            <button onclick="switchView('player')" class="flex-1 text-center py-2 transition group">
+                <span id="tab-player-text" class="font-game font-bold text-sm tracking-widest tab-active">PLAYER</span>
+                <div id="tab-player-line" class="tab-line active-line"></div>
+            </button>
+            <button onclick="switchView('host')" class="flex-1 text-center py-2 transition group">
+                <span id="tab-host-text" class="font-game font-bold text-sm tracking-widest text-gray-400">HOST</span>
+                <div id="tab-host-line" class="tab-line"></div>
+            </button>
+        </div>
+    </nav>
+
+    <main id="player-view" class="pt-24 pb-12 px-4 flex flex-col items-center min-h-screen">
+        <div class="w-full max-w-md">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-4xl font-game font-black italic text-blue-400 tracking-tighter uppercase">Bingo Cards</h1>
+                <div class="flex gap-2">
+                    <button onclick="toggleManual(true)" class="p-2 glass rounded-lg hover:bg-white/10 transition">
+                        <svg class="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </button>
+                    <button onclick="confirmReset()" class="p-2 glass rounded-lg hover:bg-blue-500/20 transition group">
+                        <svg class="w-6 h-6 text-blue-400 group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    </button>
+                </div>
+            </div>
+            <div id="bingo-counter" class="mb-4 py-2 px-6 glass rounded-full inline-block border-blue-500/30">
+                <span class="text-blue-300 font-game font-bold">BINGO: </span><span id="line-count" class="text-white font-game font-black text-xl">0</span>
+            </div>
+            <div class="glass p-4 rounded-[2.5rem] shadow-2xl border border-white/10">
+                <div class="grid grid-cols-5 gap-2 text-center font-game font-black text-2xl">
+                    <div class="text-red-500">B</div><div class="text-orange-400">I</div><div class="text-emerald-400">N</div><div class="text-blue-400">G</div><div class="text-purple-500">O</div>
+                    <div id="board-grid" class="contents"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <main id="host-view" class="hidden pt-24 pb-12 px-4 flex flex-col items-center min-h-screen">
+        <div class="w-full max-w-xl">
+            <div class="glass rounded-[3rem] p-10 text-center border-t border-white/10 shadow-2xl mb-8 relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-purple-400 to-transparent"></div>
+                <div class="flex justify-between items-center mb-10"><div class="w-6"></div><h2 class="text-slate-400 font-game text-[10px] tracking-[0.5em] uppercase">Master Controller</h2><button onclick="resetHost()" class="p-2 glass rounded-lg hover:bg-purple-500/20 transition group"><svg class="w-5 h-5 text-purple-400 group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg></button></div>
+                
+                <div class="flex justify-center items-center gap-4 mb-10">
+                    <div id="h-letter" class="w-24 h-36 glass flex items-center justify-center text-6xl font-game font-black rounded-3xl text-white leading-none">-</div>
+                    <div id="h-number" class="w-40 h-36 glass flex items-center justify-center border border-blue-500/40 text-blue-400 text-8xl font-game font-black rounded-3xl leading-none">?</div>
+                </div>
+
+                <button id="draw-btn" onclick="runHostDraw()" class="group relative w-full py-6 rounded-2xl bg-blue-600 font-game font-black text-xl text-white uppercase hover:bg-blue-500 shadow-xl active:scale-95 transition">Generate Next</button>
+            </div>
+            <div class="w-full px-2">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-slate-500 font-game text-[10px] tracking-widest uppercase">Draw History</h3>
+                    <span id="history-count" class="text-[10px] font-game text-blue-400">0/75</span>
+                </div>
+                <div id="h-history" class="flex flex-wrap gap-2"></div>
+            </div>
+        </div>
+    </main>
+
+    <div id="manual-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
+        <div class="glass max-w-sm w-full p-8 rounded-[2rem] border border-white/20 shadow-2xl">
+            <h3 class="text-2xl font-black text-blue-400 mb-6 font-game italic tracking-tight uppercase">How to play</h3>
+            <ul class="space-y-6 text-slate-300 text-sm leading-relaxed">
+                <li class="flex gap-4"><span class="text-blue-500 font-black font-game text-lg">01</span><span>B(1-15), I(16-30)... 알파벳별 정해진 숫자 범위로 판이 구성됩니다.</span></li>
+                <li class="flex gap-4"><span class="text-blue-500 font-black font-game text-lg">02</span><span>사회자가 알파벳과 번호를 부르면 해당되는 칸을 터치하여 체크하세요.</span></li>
+                <li class="flex gap-4"><span class="text-blue-500 font-black font-game text-lg">03</span><span>가로, 세로, 혹은 대각선으로 5칸이 연결되면 <strong>BINGO</strong>가 완성됩니다.</span></li>
+            </ul>
+            <button onclick="toggleManual(false)" class="w-full mt-10 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-bold transition shadow-lg active:scale-95">알겠어요!</button>
+        </div>
+    </div>
+
+    <script>
+        const RANGES = { 'B': [1,15], 'I': [16,30], 'N': [31,45], 'G': [46,60], 'O': [61,75] };
+        let boardState = []; let drawnSet = new Set(); let currentBingoLines = 0;
+
+        function switchView(view) {
+            const isP = view === 'player';
+            document.getElementById('player-view').classList.toggle('hidden', !isP);
+            document.getElementById('host-view').classList.toggle('hidden', isP);
+            document.getElementById('tab-player-text').className = isP ? 'font-game font-bold text-sm tab-active' : 'font-game font-bold text-sm text-gray-400';
+            document.getElementById('tab-player-line').classList.toggle('active-line', isP);
+            document.getElementById('tab-host-text').className = !isP ? 'font-game font-bold text-sm tab-active' : 'font-game font-bold text-sm text-gray-400';
+            document.getElementById('tab-host-line').classList.toggle('active-line', !isP);
+        }
+
+        function createBoard() {
+            const grid = document.getElementById('board-grid'); grid.innerHTML = ''; boardState = []; currentBingoLines = 0;
+            document.getElementById('line-count').innerText = "0";
+            const colData = {};
+            ['B','I','N','G','O'].forEach(l => {
+                colData[l] = Array.from({length: 15}, (_, i) => i + RANGES[l][0]).sort(() => Math.random() - 0.5).slice(0, 5);
+            });
+            for (let r = 0; r < 5; r++) {
+                boardState[r] = [];
+                ['B','I','N','G','O'].forEach((l, c) => {
+                    const cell = document.createElement('div');
+                    cell.className = "bingo-cell aspect-square flex items-center justify-center glass rounded-xl text-xl font-game font-bold cursor-pointer hover:bg-white/10";
+                    cell.innerText = colData[l][r];
+                    cell.onclick = () => { cell.classList.toggle('marked'); calculateBingo(); };
+                    grid.appendChild(cell);
+                    boardState[r][c] = { marked: false, el: cell };
+                });
+            }
+        }
+
+        function toggleManual(show) { document.getElementById('manual-modal').classList.toggle('hidden', !show); }
+        function confirmReset() { if(confirm("빙고판을 새로 만드시겠습니까?")) createBoard(); }
+
+        function calculateBingo() {
+            let lines = 0; let winEls = new Set();
+            const check = (cells) => { if(cells.every(c => c.el.classList.contains('marked'))) { lines++; cells.forEach(c => winEls.add(c.el)); } };
+            for(let i=0; i<5; i++) {
+                check(boardState[i]);
+                check([0,1,2,3,4].map(r => boardState[r][i]));
+            }
+            check([0,1,2,3,4].map(i => boardState[i][i]));
+            check([0,1,2,3,4].map(i => boardState[i][4-i]));
+            document.querySelectorAll('.bingo-cell').forEach(el => el.classList.remove('win-cell'));
+            winEls.forEach(el => el.classList.add('win-cell'));
+            if (lines > currentBingoLines) confetti({ particleCount: 150, spread: 70, origin: { y: 0.7 } });
+            currentBingoLines = lines; document.getElementById('line-count').innerText = lines;
+        }
+
+        function resetHost() {
+            if(confirm("모든 추첨 기록을 초기화하고 처음부터 다시 시작할까요?")) {
+                drawnSet.clear(); document.getElementById('h-letter').innerText = "-"; document.getElementById('h-number').innerText = "?";
+                document.getElementById('h-history').innerHTML = "";
+                document.getElementById('history-count').innerText = "0/75";
+            }
+        }
+
+        function runHostDraw() {
+            if(drawnSet.size >= 75) return alert("75개 번호가 모두 소진되었습니다.");
+            const btn = document.getElementById('draw-btn'); btn.disabled = true;
+            const lEl = document.getElementById('h-letter'); const nEl = document.getElementById('h-number');
+            lEl.classList.add('rolling'); nEl.classList.add('rolling');
+            let cycle = 0;
+            const timer = setInterval(() => {
+                lEl.innerText = ['B','I','N','G','O'][Math.floor(Math.random()*5)];
+                nEl.innerText = Math.floor(Math.random()*75)+1;
+                if(++cycle > 20) {
+                    clearInterval(timer); lEl.classList.remove('rolling'); nEl.classList.remove('rolling');
+                    let key, num; do {
+                        key = ['B','I','N','G','O'][Math.floor(Math.random()*5)];
+                        num = Math.floor(Math.random()*15) + RANGES[key][0];
+                    } while(drawnSet.has(`${key}-${num}`));
+                    drawnSet.add(`${key}-${num}`); lEl.innerText = key; nEl.innerText = num; btn.disabled = false;
+                    
+                    const tag = document.createElement('div');
+                    // animate-bounce를 제거하여 애니메이션 없이 고정 정렬되게 수정
+                    tag.className = "px-3 py-1 glass border border-blue-500/30 text-blue-300 text-xs rounded-lg font-game";
+                    tag.innerText = `${key}-${num}`; 
+                    document.getElementById('h-history').prepend(tag);
+                    document.getElementById('history-count').innerText = `${drawnSet.size}/75`;
+                }
+            }, 50);
+        }
+
+        createBoard();
+    </script>
+</body>
+</html>
