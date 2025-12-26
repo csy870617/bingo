@@ -3,20 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BINGO PRO: COMPACT & BALANCED</title>
+    <title>BINGO PRO: PREMIUM FINAL</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Noto+Sans+KR:wght@300;700&display=swap" rel="stylesheet">
     <style>
-        /* ✨ 전체 화면 고정 및 스크롤 완전 제거 */
+        /* ✨ 전체 화면 고정 및 모든 스크롤(가로/세로) 차단 */
+        * { box-sizing: border-box; }
         html, body { 
-            height: 100dvh; overflow: hidden; margin: 0; padding: 0;
+            height: 100dvh; width: 100vw;
+            overflow: hidden; margin: 0; padding: 0;
             overscroll-behavior: none;
             background: radial-gradient(circle at center, #1e293b, #0f172a); 
             color: #f8fafc; font-family: 'Noto Sans KR', sans-serif; 
         }
         ::-webkit-scrollbar { display: none; }
-        * { -ms-overflow-style: none; scrollbar-width: none; }
 
         .font-game { font-family: 'Orbitron', sans-serif; }
         .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.1); }
@@ -24,10 +25,10 @@
         .tab-line { height: 3px; width: 0; background: #3b82f6; transition: all 0.3s ease; margin: 0 auto; }
         .active-line { width: 100%; box-shadow: 0 0 10px #3b82f6; }
 
-        /* 컴팩트 컨테이너: 폴더블폰 펼침 크기에 최적화 */
+        /* 컴팩트 컨테이너: 가로 스크롤 방지를 위해 w-full 사용 */
         .compact-container {
             width: 100%;
-            max-width: 500px; /* 무한정 커지지 않도록 제한 */
+            max-width: 500px;
             margin: 0 auto;
         }
 
@@ -69,7 +70,7 @@
     </nav>
 
     <main id="player-view" class="flex-1 flex flex-col items-center px-6 pt-4 overflow-hidden">
-        <div class="compact-container flex flex-col h-full">
+        <div class="compact-container flex flex-col h-full w-full">
             <div class="flex justify-between items-center mb-3 shrink-0">
                 <h1 class="text-6xl md:text-7xl font-game font-black italic text-blue-500 tracking-tighter uppercase leading-none select-none">Bingo</h1>
                 <div class="flex gap-2">
@@ -81,7 +82,7 @@
             <div class="flex justify-start mb-3 shrink-0">
                 <div id="bingo-counter" class="py-1 px-4 glass rounded-full border border-blue-500/30 flex items-center gap-3">
                     <span class="text-blue-300 font-game font-bold text-[10px] tracking-widest uppercase">Lines</span>
-                    <span id="line-count" class="text-white font-game font-black text-xl leading-none">0</span>
+                    <span id="line-count" class="text-white font-game font-black text-2xl leading-none">0</span>
                 </div>
             </div>
 
@@ -99,7 +100,7 @@
     </main>
 
     <main id="host-view" class="hidden flex-1 flex flex-col items-center px-6 pt-6 overflow-hidden">
-        <div class="compact-container flex flex-col h-full">
+        <div class="compact-container flex flex-col h-full w-full">
             <div class="glass rounded-[3rem] p-8 text-center border-t border-white/10 shadow-2xl mb-6 relative shrink-0">
                 <div class="flex justify-between items-center mb-6">
                     <div class="w-6"></div>
@@ -126,13 +127,26 @@
 
     <div id="manual-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
         <div class="glass max-w-sm w-full p-8 rounded-[3rem] border border-white/20 shadow-2xl text-center">
-            <h3 class="text-2xl font-black text-blue-400 mb-6 font-game italic uppercase">Instruction</h3>
+            <h3 class="text-2xl font-black text-blue-400 mb-6 font-game italic uppercase tracking-tighter border-b border-white/10 pb-4">Bingo Instruction</h3>
             <ul class="space-y-4 text-slate-300 text-xs text-left leading-relaxed">
-                <li class="flex gap-4"><span class="text-blue-500 font-black font-game text-lg">01</span><span>B-O 범위(1~60)로 판이 구성됩니다.</span></li>
-                <li class="flex gap-4"><span class="text-blue-500 font-black font-game text-lg">02</span><span>사회자가 부르는 번호를 터치해 체크하세요.</span></li>
-                <li class="flex gap-4"><span class="text-blue-500 font-black font-game text-lg">03</span><span>가운데 십자가는 은혜의 고정 칸입니다!</span></li>
+                <li class="flex gap-4">
+                    <span class="text-blue-500 font-black font-game text-lg">01</span>
+                    <span><strong>숫자 범위:</strong> B(1-12), I(13-24), N(25-36), G(37-48), O(49-60) 영역별 숫자로 판이 구성됩니다.</span>
+                </li>
+                <li class="flex gap-4">
+                    <span class="text-blue-500 font-black font-game text-lg">02</span>
+                    <span><strong>체크 방법:</strong> 사회자가 부르는 알파벳과 숫자를 확인한 후 해당 칸을 터치하세요. 한 번 더 터치하면 취소됩니다.</span>
+                </li>
+                <li class="flex gap-4">
+                    <span class="text-blue-500 font-black font-game text-lg">03</span>
+                    <span><strong>승리 조건:</strong> 가로, 세로, 혹은 대각선으로 5칸이 한 줄로 연결되면 <strong>BINGO</strong>가 완성됩니다.</span>
+                </li>
+                <li class="flex gap-4">
+                    <span class="text-blue-500 font-black font-game text-lg">04</span>
+                    <span><strong>은혜의 칸:</strong> 정중앙의 십자가(✝️)는 모든 성도님께 드리는 보너스 칸으로 시작과 동시에 체크되어 있습니다.</span>
+                </li>
             </ul>
-            <button onclick="toggleManual(false)" class="w-full mt-8 py-3.5 bg-blue-600 text-white rounded-2xl font-bold">확인</button>
+            <button onclick="toggleManual(false)" class="w-full mt-8 py-3.5 bg-blue-600 text-white rounded-2xl font-bold active:scale-95 transition">확인했습니다</button>
         </div>
     </div>
 
@@ -140,7 +154,9 @@
         const RANGES = { 'B': [1,12], 'I': [13,24], 'N': [25,36], 'G': [37,48], 'O': [49,60] };
         let boardState = []; let drawnSet = new Set(); let currentBingoLines = 0;
         
+        // 🔊 오디오 엔진
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
         function playSoftTick() {
             if (audioCtx.state === 'suspended') audioCtx.resume();
             const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
