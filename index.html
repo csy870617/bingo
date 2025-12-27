@@ -3,12 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BINGO PRO: PREMIUM FINAL</title>
+    <title>BINGO PRO: PREMIUM CONNECT</title>
+    
+    <meta property="og:title" content="은혜로운 빙고 시간 ✝️">
+    <meta property="og:description" content="성도님들과 함께하는 즐거운 교제, BINGO PRO에 초대합니다!">
+    <meta property="og:image" content="thumbnail.png">
+    <meta property="og:url" content="https://csy870617.github.io/bingo/">
+    <meta property="og:type" content="website">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Noto+Sans+KR:wght@300;700&display=swap" rel="stylesheet">
     <style>
-        /* ✨ 전체 화면 고정 및 모든 스크롤(가로/세로) 차단 */
         * { box-sizing: border-box; }
         html, body { 
             height: 100dvh; width: 100vw;
@@ -25,17 +31,12 @@
         .tab-line { height: 3px; width: 0; background: #3b82f6; transition: all 0.3s ease; margin: 0 auto; }
         .active-line { width: 100%; box-shadow: 0 0 10px #3b82f6; }
 
-        /* 컴팩트 컨테이너: 가로 스크롤 방지를 위해 w-full 사용 */
-        .compact-container {
-            width: 100%;
-            max-width: 500px;
-            margin: 0 auto;
-        }
+        .compact-container { width: 100%; max-width: 500px; margin: 0 auto; }
 
         .bingo-cell { 
             transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); 
             background: rgba(255,255,255,0.03);
-            font-size: clamp(0.9rem, 2.5vh, 1.8rem);
+            font-size: clamp(0.9rem, 2.3vh, 1.8rem);
             aspect-ratio: 1 / 1;
             display: flex; align-items: center; justify-content: center;
         }
@@ -47,8 +48,8 @@
             box-shadow: 0 0 15px rgba(124, 58, 237, 0.5); 
         }
         
-        @keyframes bingo-win-glow { 0%, 100% { box-shadow: 0 0 15px #fbbf24; transform: scale(0.94) rotate(3deg); } 50% { box-shadow: 0 0 30px #fff7ed; transform: scale(1.0) rotate(3deg); } }
         .win-cell { background: linear-gradient(135deg, #fbbf24, #f59e0b) !important; animation: bingo-win-glow 0.8s infinite; z-index: 20; color: #451a03 !important; border: 2px solid #fff !important; }
+        @keyframes bingo-win-glow { 0%, 100% { box-shadow: 0 0 15px #fbbf24; transform: scale(0.94) rotate(3deg); } 50% { box-shadow: 0 0 30px #fff7ed; transform: scale(1.0) rotate(3deg); } }
 
         .rolling { animation: slot-scroll 0.1s infinite alternate; }
         @keyframes slot-scroll { from { transform: translateY(-1px); } to { transform: translateY(1px); } }
@@ -69,24 +70,24 @@
         </div>
     </nav>
 
-    <main id="player-view" class="flex-1 flex flex-col items-center px-6 pt-4 overflow-hidden">
+    <main id="player-view" class="flex-1 flex flex-col items-center px-6 pt-1 overflow-hidden">
         <div class="compact-container flex flex-col h-full w-full">
-            <div class="flex justify-between items-center mb-3 shrink-0">
+            <div class="flex justify-between items-center mb-1 shrink-0">
                 <h1 class="text-6xl md:text-7xl font-game font-black italic text-blue-500 tracking-tighter uppercase leading-none select-none">Bingo</h1>
                 <div class="flex gap-2">
                     <button onclick="toggleManual(true)" class="p-2.5 glass rounded-xl hover:bg-white/10 active:scale-90 transition"><svg class="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></button>
-                    <button onclick="confirmReset()" class="p-2.5 glass rounded-xl hover:bg-blue-500/20 active:scale-90 transition group"><svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg></button>
+                    <button onclick="confirmReset()" class="p-2.5 glass rounded-xl hover:bg-blue-500/20 active:scale-90 transition group"><svg class="w-5 h-5 text-blue-400 group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg></button>
                 </div>
             </div>
 
-            <div class="flex justify-start mb-3 shrink-0">
+            <div class="flex justify-start mb-2 shrink-0">
                 <div id="bingo-counter" class="py-1 px-4 glass rounded-full border border-blue-500/30 flex items-center gap-3">
                     <span class="text-blue-300 font-game font-bold text-[10px] tracking-widest uppercase">Lines</span>
-                    <span id="line-count" class="text-white font-game font-black text-2xl leading-none">0</span>
+                    <span id="line-count" class="text-white font-game font-black text-xl leading-none">0</span>
                 </div>
             </div>
 
-            <div class="glass p-3 md:p-5 rounded-[2.5rem] shadow-2xl border border-white/10 w-full aspect-square shrink-0">
+            <div class="glass p-3 md:p-5 rounded-[2.5rem] shadow-2xl border border-white/10 w-full aspect-square shrink-0 mb-4">
                 <div class="grid grid-cols-5 gap-2 md:gap-3 h-full items-center">
                     <div class="flex items-center justify-center font-game font-black text-2xl md:text-4xl text-red-500 pb-1">B</div>
                     <div class="flex items-center justify-center font-game font-black text-2xl md:text-4xl text-orange-400 pb-1">I</div>
@@ -95,6 +96,17 @@
                     <div class="flex items-center justify-center font-game font-black text-2xl md:text-4xl text-purple-500 pb-1">O</div>
                     <div id="board-grid" class="contents"></div>
                 </div>
+            </div>
+
+            <div class="flex gap-3 shrink-0 px-1 pb-4">
+                <button onclick="shareApp()" class="flex-1 flex items-center justify-center gap-2 py-6 glass rounded-[1.5rem] border-blue-500/30 hover:bg-blue-500/10 active:scale-95 transition group">
+                    <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+                    <span class="text-sm font-bold text-slate-100 uppercase tracking-tight">초대하기</span>
+                </button>
+                <a href="https://csy870617.github.io/faiths/" target="_blank" class="flex-1 flex items-center justify-center gap-2 py-6 glass rounded-[1.5rem] border-yellow-500/30 hover:bg-yellow-500/10 active:scale-95 transition group">
+                    <svg class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24"><path d="M11 2h2v7h7v2h-7v11h-2V11H4V9h7V2z"/></svg>
+                    <span class="font-game text-sm font-black text-slate-100 tracking-widest uppercase">FAITHS</span>
+                </a>
             </div>
         </div>
     </main>
@@ -109,7 +121,7 @@
                 </div>
                 
                 <div class="flex justify-center items-stretch gap-4 mb-8 font-game font-black">
-                    <div id="h-letter" class="flex-1 h-32 md:h-44 glass flex items-center justify-center text-5xl md:text-7xl rounded-2xl text-white">-</div>
+                    <div id="h-letter" class="flex-1 h-32 md:h-44 glass flex items-center justify-center text-5xl md:text-7xl rounded-2xl text-white shadow-inner">-</div>
                     <div id="h-number" class="flex-[1.4] h-32 md:h-44 glass flex items-center justify-center border border-blue-500/40 text-blue-400 text-6xl md:text-8xl rounded-2xl leading-none">?</div>
                 </div>
 
@@ -129,39 +141,41 @@
         <div class="glass max-w-sm w-full p-8 rounded-[3rem] border border-white/20 shadow-2xl text-center">
             <h3 class="text-2xl font-black text-blue-400 mb-6 font-game italic uppercase tracking-tighter border-b border-white/10 pb-4">Bingo Instruction</h3>
             <ul class="space-y-4 text-slate-300 text-xs text-left leading-relaxed">
-                <li class="flex gap-4">
-                    <span class="text-blue-500 font-black font-game text-lg">01</span>
-                    <span><strong>숫자 범위:</strong> B(1-12), I(13-24), N(25-36), G(37-48), O(49-60) 영역별 숫자로 판이 구성됩니다.</span>
-                </li>
-                <li class="flex gap-4">
-                    <span class="text-blue-500 font-black font-game text-lg">02</span>
-                    <span><strong>체크 방법:</strong> 사회자가 부르는 알파벳과 숫자를 확인한 후 해당 칸을 터치하세요. 한 번 더 터치하면 취소됩니다.</span>
-                </li>
-                <li class="flex gap-4">
-                    <span class="text-blue-500 font-black font-game text-lg">03</span>
-                    <span><strong>승리 조건:</strong> 가로, 세로, 혹은 대각선으로 5칸이 한 줄로 연결되면 <strong>BINGO</strong>가 완성됩니다.</span>
-                </li>
-                <li class="flex gap-4">
-                    <span class="text-blue-500 font-black font-game text-lg">04</span>
-                    <span><strong>은혜의 칸:</strong> 정중앙의 십자가(✝️)는 모든 성도님께 드리는 보너스 칸으로 시작과 동시에 체크되어 있습니다.</span>
-                </li>
+                <li class="flex gap-4"><span class="text-blue-500 font-black font-game text-xl">01</span><span>B-O 범위(1~60)의 숫자로 판이 구성됩니다.</span></li>
+                <li class="flex gap-4"><span class="text-blue-500 font-black font-game text-xl">02</span><span>사회자가 부르는 숫자를 확인 후 칸을 터치하세요.</span></li>
+                <li class="flex gap-4"><span class="text-blue-500 font-black font-game text-xl">03</span><span>가로, 세로, 혹은 대각선으로 5칸이 연결되면 완성됩니다.</span></li>
+                <li class="flex gap-4"><span class="text-blue-500 font-black font-game text-xl">04</span><span>정중앙 십자가(✝️)는 은혜의 고정 보너스 칸입니다!</span></li>
             </ul>
-            <button onclick="toggleManual(false)" class="w-full mt-8 py-3.5 bg-blue-600 text-white rounded-2xl font-bold active:scale-95 transition">확인했습니다</button>
+            <button onclick="toggleManual(false)" class="w-full mt-6 py-3.5 bg-blue-600 text-white rounded-2xl font-bold">확인했습니다</button>
         </div>
     </div>
 
     <script>
         const RANGES = { 'B': [1,12], 'I': [13,24], 'N': [25,36], 'G': [37,48], 'O': [49,60] };
         let boardState = []; let drawnSet = new Set(); let currentBingoLines = 0;
-        
-        // 🔊 오디오 엔진
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        async function shareApp() {
+            const shareData = {
+                title: '은혜로운 빙고 시간 ✝️',
+                text: '성도님들과 함께하는 즐거운 교제, BINGO PRO에 초대합니다!',
+                url: 'https://csy870617.github.io/bingo/'
+            };
+            if (navigator.share) {
+                try { await navigator.share(shareData); } catch (err) { }
+            } else {
+                try {
+                    await navigator.clipboard.writeText(shareData.url);
+                    alert('링크가 복사되었습니다!');
+                } catch (err) { prompt('이 링크를 복사해주세요:', shareData.url); }
+            }
+        }
         
         function playSoftTick() {
             if (audioCtx.state === 'suspended') audioCtx.resume();
             const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
             osc.type = 'sine'; osc.frequency.setValueAtTime(2200, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.03, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.03);
+            gain.gain.setValueAtTime(0.04, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.03);
             osc.connect(gain); gain.connect(audioCtx.destination);
             osc.start(); osc.stop(audioCtx.currentTime + 0.03);
         }
@@ -171,8 +185,8 @@
             [523.25, 659.25, 783.99, 987.77].forEach((f, i) => {
                 const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
                 o.type = 'sine'; o.frequency.setValueAtTime(f, now);
-                g.gain.setValueAtTime(0, now); g.gain.linearRampToValueAtTime(0.04, now + 0.05);
-                g.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
+                g.gain.setValueAtTime(0, now); g.gain.linearRampToValueAtTime(0.06, now + 0.05);
+                g.gain.exponentialRampToValueAtTime(0.001, now + 1.8);
                 o.connect(g); g.connect(audioCtx.destination);
                 o.start(now + (i * 0.02)); o.stop(now + 1.8);
             });
