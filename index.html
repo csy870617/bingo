@@ -157,7 +157,24 @@
     <script>
         const RANGES = { 'B': [1,12], 'I': [13,24], 'N': [25,36], 'G': [37,48], 'O': [49,60] };
         let boardState = []; let drawnSet = new Set(); let currentBingoLines = 0;
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let audioCtx = null; let drawTimer = null;
+
+        function getAudio() {
+            if (!audioCtx) {
+                try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+                catch (e) { return null; }
+            }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            return audioCtx;
+        }
+
+        function shuffle(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
 
         async function shareApp() {
             const shareData = {
@@ -176,15 +193,15 @@
         }
         
         function playSoftTick() {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-            osc.type = 'sine'; osc.frequency.setValueAtTime(2200, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.04, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.03);
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.start(); osc.stop(audioCtx.currentTime + 0.03);
+            const ctx = getAudio(); if (!ctx) return;
+            const osc = ctx.createOscillator(); const gain = ctx.createGain();
+            osc.type = 'sine'; osc.frequency.setValueAtTime(2200, ctx.currentTime);
+            gain.gain.setValueAtTime(0.04, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.start(); osc.stop(ctx.currentTime + 0.03);
         }
         function playElegantChime() {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const audioCtx = getAudio(); if (!audioCtx) return;
             const now = audioCtx.currentTime;
             [523.25, 659.25, 783.99, 987.77].forEach((f, i) => {
                 const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
@@ -211,7 +228,7 @@
             document.getElementById('line-count').innerText = "0";
             const colData = {};
             ['B','I','N','G','O'].forEach(l => {
-                colData[l] = Array.from({length: 12}, (_, i) => i + RANGES[l][0]).sort(() => Math.random() - 0.5).slice(0, 5);
+                colData[l] = shuffle(Array.from({length: 12}, (_, i) => i + RANGES[l][0])).slice(0, 5);
             });
             for (let r = 0; r < 5; r++) {
                 boardState[r] = [];
@@ -222,7 +239,11 @@
                         cell.innerHTML = `<svg class="w-[50%] h-[50%] text-yellow-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.9)]" fill="currentColor" viewBox="0 0 24 24"><path d="M11 2h2v7h7v2h-7v11h-2V11H4V9h7V2z"/></svg>`;
                         cell.classList.add('marked'); boardState[r][c] = { marked: true, el: cell };
                     } else {
-                        cell.innerText = colData[l][r]; cell.onclick = () => { cell.classList.toggle('marked'); calculateBingo(); };
+                        cell.innerText = colData[l][r];
+                        cell.onclick = () => {
+                            const st = boardState[r][c]; st.marked = !st.marked;
+                            cell.classList.toggle('marked', st.marked); calculateBingo();
+                        };
                         boardState[r][c] = { marked: false, el: cell };
                     }
                     grid.appendChild(cell);
@@ -236,7 +257,7 @@
 
         function calculateBingo() {
             let lines = 0; let winEls = new Set();
-            const getMarked = (r, c) => boardState[r][c].el.classList.contains('marked');
+            const getMarked = (r, c) => boardState[r][c].marked;
             for(let i=0; i<5; i++) {
                 if([0,1,2,3,4].every(c => getMarked(i, c))) { lines++; [0,1,2,3,4].forEach(c => winEls.add(boardState[i][c].el)); }
                 if([0,1,2,3,4].every(r => getMarked(r, i))) { lines++; [0,1,2,3,4].forEach(r => winEls.add(boardState[r][i].el)); }
@@ -245,33 +266,45 @@
             if([0,1,2,3,4].every(i => getMarked(i, 4-i))) { lines++; [0,1,2,3,4].forEach(i => winEls.add(boardState[i][4-i].el)); }
             document.querySelectorAll('.bingo-cell').forEach(el => el.classList.remove('win-cell'));
             winEls.forEach(el => el.classList.add('win-cell'));
-            if (lines > currentBingoLines) { confetti({ particleCount: 150, spread: 70, origin: { y: 0.7 } }); }
+            if (lines > currentBingoLines && typeof confetti === 'function') {
+                try { confetti({ particleCount: 150, spread: 70, origin: { y: 0.7 } }); } catch (e) { }
+            }
             currentBingoLines = lines; document.getElementById('line-count').innerText = lines;
         }
 
         function resetHost() {
             if(confirm("기록을 초기화할까요?")) {
-                drawnSet.clear(); document.getElementById('h-letter').innerText = "-"; document.getElementById('h-number').innerText = "?";
+                if (drawTimer) { clearInterval(drawTimer); drawTimer = null; }
+                const lEl = document.getElementById('h-letter'); const nEl = document.getElementById('h-number');
+                lEl.classList.remove('rolling'); nEl.classList.remove('rolling');
+                document.getElementById('draw-btn').disabled = false;
+                drawnSet.clear(); lEl.innerText = "-"; nEl.innerText = "?";
                 document.getElementById('h-history').innerHTML = ""; document.getElementById('history-count').innerText = "0";
             }
         }
 
         function runHostDraw() {
-            if(drawnSet.size >= 60) return alert("60개 번호가 모두 소진되었습니다.");
+            if (drawTimer) return;
+            const remaining = [];
+            ['B','I','N','G','O'].forEach(k => {
+                for (let n = RANGES[k][0]; n <= RANGES[k][1]; n++) {
+                    if (!drawnSet.has(`${k}-${n}`)) remaining.push([k, n]);
+                }
+            });
+            if(remaining.length === 0) return alert("60개 번호가 모두 소진되었습니다.");
             const btn = document.getElementById('draw-btn'); btn.disabled = true;
             const lEl = document.getElementById('h-letter'); const nEl = document.getElementById('h-number');
             lEl.classList.add('rolling'); nEl.classList.add('rolling');
             let cycle = 0;
-            const timer = setInterval(() => {
-                lEl.innerText = ['B','I','N','G','O'][Math.floor(Math.random()*5)];
-                nEl.innerText = Math.floor(Math.random()*60)+1;
-                playSoftTick(); 
+            drawTimer = setInterval(() => {
+                const rk = ['B','I','N','G','O'][Math.floor(Math.random()*5)];
+                lEl.innerText = rk;
+                nEl.innerText = Math.floor(Math.random()*12) + RANGES[rk][0];
+                playSoftTick();
                 if(++cycle > 20) {
-                    clearInterval(timer); lEl.classList.remove('rolling'); nEl.classList.remove('rolling');
-                    let key, num; do {
-                        key = ['B','I','N','G','O'][Math.floor(Math.random()*5)];
-                        num = Math.floor(Math.random()*12) + RANGES[key][0];
-                    } while(drawnSet.has(`${key}-${num}`));
+                    clearInterval(drawTimer); drawTimer = null;
+                    lEl.classList.remove('rolling'); nEl.classList.remove('rolling');
+                    const [key, num] = remaining[Math.floor(Math.random()*remaining.length)];
                     drawnSet.add(`${key}-${num}`); lEl.innerText = key; nEl.innerText = num; btn.disabled = false;
                     playElegantChime(); 
                     const tag = document.createElement('div');
