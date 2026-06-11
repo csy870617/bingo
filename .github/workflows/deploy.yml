@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - claude/determined-hamilton-cy4ikq
   workflow_dispatch:
 
 permissions:
