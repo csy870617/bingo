@@ -22,6 +22,11 @@
             var targetUrl = window.location.href;
 
             if (userAgent.includes('kakaotalk')) {
+                // 세션당 1회만 시도해 외부 브라우저 호출 실패 시 무한 리다이렉트(깜빡임) 방지
+                try {
+                    if (sessionStorage.getItem('kakaoEscaped')) return;
+                    sessionStorage.setItem('kakaoEscaped', '1');
+                } catch (e) { /* sessionStorage 사용 불가 시 그대로 진행 */ }
                 // 카카오톡 내부 브라우저인 경우 외부 브라우저 호출 스킴 실행
                 window.location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(targetUrl);
             }
@@ -164,7 +169,7 @@
                 try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
                 catch (e) { return null; }
             }
-            if (audioCtx.state === 'suspended') audioCtx.resume();
+            if (audioCtx.state === 'suspended') { try { audioCtx.resume().catch(function(){}); } catch (e) {} }
             return audioCtx;
         }
 
