@@ -13,6 +13,8 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Noto+Sans+KR:wght@300;700&display=swap" rel="stylesheet">
     
     <script>
@@ -100,6 +102,18 @@
                 </div>
             </div>
 
+            <div id="player-room-area" class="hidden items-center mb-2 shrink-0 gap-2 flex-wrap">
+                <button id="player-join-btn" onclick="openRoomModal('player')" class="py-1 px-4 glass rounded-full border border-emerald-500/40 text-emerald-300 text-[10px] font-bold font-game tracking-widest uppercase active:scale-90 transition">방 입장</button>
+                <div id="player-room-info" class="hidden items-center gap-2 flex-wrap">
+                    <span id="player-room-code" class="py-1 px-3 glass rounded-full border border-emerald-500/30 text-emerald-300 font-game font-bold text-[10px] tracking-widest">----</span>
+                    <span class="text-slate-400 text-[10px] uppercase tracking-widest font-game">호출</span>
+                    <span id="player-last-call" class="text-white font-game font-black text-base leading-none">-</span>
+                    <span id="player-room-target" class="text-slate-500 text-[10px] font-game"></span>
+                    <button onclick="openLeaderboard()" class="py-1 px-3 glass rounded-full border border-yellow-500/30 text-yellow-300 text-[10px] font-bold active:scale-90 transition">순위</button>
+                    <button onclick="exitRoom()" class="py-1 px-3 glass rounded-full border border-red-500/30 text-red-300 text-[10px] font-bold active:scale-90 transition">나가기</button>
+                </div>
+            </div>
+
             <div class="glass p-3 md:p-5 rounded-[2.5rem] shadow-2xl border border-white/10 w-full aspect-square shrink-0 mb-4">
                 <div class="grid grid-cols-5 gap-2 md:gap-3 h-full items-center">
                     <div class="flex items-center justify-center font-game font-black text-2xl md:text-4xl text-red-500 pb-1">B</div>
@@ -131,6 +145,16 @@
                     <div class="w-6"></div><h2 class="font-game text-[10px] tracking-[0.5em] uppercase text-slate-400">Master Controller</h2>
                     <button onclick="resetHost()" class="p-2 glass rounded-xl hover:bg-purple-500/20 active:scale-90 transition"><svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg></button>
                 </div>
+                <div id="host-room-area" class="hidden items-center justify-center mb-6 gap-2 flex-wrap">
+                    <button id="host-create-btn" onclick="openRoomModal('host')" class="py-1.5 px-4 glass rounded-full border border-emerald-500/40 text-emerald-300 text-[11px] font-bold font-game tracking-widest uppercase active:scale-90 transition">방 만들기</button>
+                    <div id="host-room-info" class="hidden items-center gap-2 flex-wrap">
+                        <span class="text-slate-400 text-[10px] font-game uppercase tracking-widest">Room</span>
+                        <span id="host-room-code" class="font-game font-black text-emerald-300 text-lg tracking-[0.3em]">----</span>
+                        <span id="host-room-target" class="text-slate-500 text-[10px] font-game"></span>
+                        <button onclick="openLeaderboard()" class="py-1 px-3 glass rounded-full border border-yellow-500/30 text-yellow-300 text-[10px] font-bold active:scale-90 transition">순위</button>
+                        <button onclick="exitRoom()" class="py-1 px-3 glass rounded-full border border-red-500/30 text-red-300 text-[10px] font-bold active:scale-90 transition">닫기</button>
+                    </div>
+                </div>
                 <div class="flex justify-center items-stretch gap-4 mb-8 font-game font-black">
                     <div id="h-letter" class="flex-1 h-32 md:h-44 glass flex items-center justify-center text-5xl md:text-7xl rounded-2xl text-white shadow-inner">-</div>
                     <div id="h-number" class="flex-[1.4] h-32 md:h-44 glass flex items-center justify-center border border-blue-500/40 text-blue-400 text-6xl md:text-8xl rounded-2xl leading-none">?</div>
@@ -156,6 +180,38 @@
                 <li class="flex gap-4"><span class="text-blue-500 font-black font-game text-xl">04</span><span><strong>은혜의 칸:</strong> 중앙 십자가(✝️)는 모든 성도님 보너스 칸입니다!</span></li>
             </ul>
             <button onclick="toggleManual(false)" class="w-full mt-6 py-3.5 bg-blue-600 text-white rounded-2xl font-bold">확인했습니다</button>
+        </div>
+    </div>
+
+    <div id="room-modal" class="hidden fixed inset-0 z-[110] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md">
+        <div class="glass max-w-sm w-full p-8 rounded-[3rem] border border-white/20 shadow-2xl">
+            <h3 id="room-modal-title" class="text-2xl font-black text-emerald-400 mb-6 font-game italic uppercase tracking-tighter border-b border-white/10 pb-4 text-center">Room</h3>
+            <div id="room-create-fields" class="hidden space-y-2 mb-4">
+                <label class="block text-slate-300 text-xs">목표 빙고 줄 수 <span class="text-slate-500">(먼저 달성한 순서로 순위가 정해집니다)</span></label>
+                <input id="room-target-input" type="number" min="1" max="12" value="3" inputmode="numeric" class="w-full bg-black/30 border border-white/15 rounded-2xl px-4 py-3 text-white text-center font-game text-xl focus:outline-none focus:border-emerald-400">
+            </div>
+            <div id="room-join-fields" class="hidden space-y-3 mb-4">
+                <input id="room-code-input" type="text" maxlength="4" placeholder="방 코드 (예: ABCD)" class="w-full bg-black/30 border border-white/15 rounded-2xl px-4 py-3 text-white text-center font-game text-xl tracking-[0.3em] uppercase focus:outline-none focus:border-emerald-400">
+                <input id="room-name-input" type="text" maxlength="12" placeholder="닉네임" class="w-full bg-black/30 border border-white/15 rounded-2xl px-4 py-3 text-white text-center focus:outline-none focus:border-emerald-400">
+            </div>
+            <p id="room-modal-msg" class="text-red-400 text-xs text-center mb-3 h-4"></p>
+            <div class="flex gap-3">
+                <button onclick="closeRoomModal()" class="flex-1 py-3 glass rounded-2xl text-slate-300 font-bold active:scale-95 transition">닫기</button>
+                <button id="room-modal-confirm" onclick="roomModalConfirm()" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-bold active:scale-95 transition">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="leaderboard-modal" class="hidden fixed inset-0 z-[110] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md">
+        <div class="glass max-w-sm w-full p-8 rounded-[3rem] border border-white/20 shadow-2xl">
+            <h3 class="text-2xl font-black text-yellow-400 mb-2 font-game italic uppercase tracking-tighter text-center">Ranking</h3>
+            <p id="leaderboard-target" class="text-slate-400 text-[10px] text-center mb-4 uppercase tracking-widest font-game"></p>
+            <div id="leaderboard-list" class="space-y-2 max-h-[40vh] overflow-y-auto mb-4"></div>
+            <div class="border-t border-white/10 pt-3 mb-4">
+                <p class="text-slate-500 text-[10px] uppercase tracking-widest font-game mb-2">호출된 번호</p>
+                <div id="leaderboard-calls" class="flex flex-wrap gap-1.5 max-h-[15vh] overflow-y-auto"></div>
+            </div>
+            <button onclick="closeLeaderboard()" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-bold active:scale-95 transition">닫기</button>
         </div>
     </div>
 
@@ -275,6 +331,7 @@
                 try { confetti({ particleCount: 150, spread: 70, origin: { y: 0.7 } }); } catch (e) { }
             }
             currentBingoLines = lines; document.getElementById('line-count').innerText = lines;
+            syncRoomProgress(lines);
         }
 
         function resetHost() {
@@ -311,7 +368,10 @@
                     lEl.classList.remove('rolling'); nEl.classList.remove('rolling');
                     const [key, num] = remaining[Math.floor(Math.random()*remaining.length)];
                     drawnSet.add(`${key}-${num}`); lEl.innerText = key; nEl.innerText = num; btn.disabled = false;
-                    playElegantChime(); 
+                    playElegantChime();
+                    if (isHost && roomCode && rdb) {
+                        rdb.ref('rooms/' + roomCode + '/draws').push({ key: key, num: num, at: firebase.database.ServerValue.TIMESTAMP }).catch(function(){});
+                    }
                     const tag = document.createElement('div');
                     tag.className = "px-3 py-1 glass border border-blue-500/30 text-blue-300 text-[10px] rounded-lg font-game shadow-lg";
                     tag.innerText = `${key}-${num}`; document.getElementById('h-history').prepend(tag);
@@ -320,7 +380,233 @@
             }, 80);
         }
 
+        /* ===================== 실시간 방 (Firebase) ===================== */
+        /* 🔧 아래 FIREBASE_CONFIG에 Firebase 콘솔 > 프로젝트 설정 > 내 앱(웹)의
+           config 값을 붙여넣으면 방 기능이 켜집니다. 비워두면 기존 오프라인
+           모드 그대로 동작합니다(방 버튼이 표시되지 않음). */
+        const FIREBASE_CONFIG = {
+            // apiKey: "...",
+            // authDomain: "your-app.firebaseapp.com",
+            // databaseURL: "https://your-app-default-rtdb.firebaseio.com",
+            // projectId: "your-app",
+            // appId: "1:xxxx:web:xxxx"
+        };
+        const ROOM_ENABLED = !!(window.firebase && FIREBASE_CONFIG && FIREBASE_CONFIG.databaseURL);
+
+        let rdb = null, roomCode = null, myPlayerId = null,
+            roomTargetLines = 0, isHost = false, myWon = false,
+            roomModalMode = 'player', drawsPrimed = false,
+            drawsRef = null, playersRef = null, metaRef = null, roomCalls = [];
+
+        function escapeHtml(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
+                return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+            });
+        }
+
+        function initFirebase() {
+            if (!ROOM_ENABLED) return false;
+            if (rdb) return true;
+            try {
+                if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+                rdb = firebase.database();
+                return true;
+            } catch (e) { console.warn('Firebase 초기화 실패', e); return false; }
+        }
+
+        function genRoomCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let c = '';
+            for (let i = 0; i < 4; i++) c += chars[Math.floor(Math.random() * chars.length)];
+            return c;
+        }
+
+        function setupRoomUI() {
+            if (!ROOM_ENABLED) return; // 설정 없으면 오프라인 모드 유지
+            const pa = document.getElementById('player-room-area');
+            pa.classList.remove('hidden'); pa.classList.add('flex');
+            const ha = document.getElementById('host-room-area');
+            ha.classList.remove('hidden'); ha.classList.add('flex');
+        }
+
+        function setRoomMsg(m) { document.getElementById('room-modal-msg').innerText = m || ''; }
+
+        function openRoomModal(mode) {
+            if (!ROOM_ENABLED) return;
+            roomModalMode = mode; setRoomMsg('');
+            const isHostMode = mode === 'host';
+            document.getElementById('room-modal-title').innerText = isHostMode ? '방 만들기' : '방 입장';
+            document.getElementById('room-create-fields').classList.toggle('hidden', !isHostMode);
+            document.getElementById('room-join-fields').classList.toggle('hidden', isHostMode);
+            document.getElementById('room-modal').classList.remove('hidden');
+        }
+        function closeRoomModal() { document.getElementById('room-modal').classList.add('hidden'); }
+
+        function roomModalConfirm() {
+            if (roomModalMode === 'host') {
+                const t = parseInt(document.getElementById('room-target-input').value, 10);
+                if (!t || t < 1 || t > 12) { setRoomMsg('목표 줄 수를 1~12 사이로 입력하세요.'); return; }
+                createRoom(t);
+            } else {
+                const code = (document.getElementById('room-code-input').value || '').trim().toUpperCase();
+                const name = (document.getElementById('room-name-input').value || '').trim();
+                if (code.length !== 4) { setRoomMsg('방 코드 4자리를 입력하세요.'); return; }
+                if (!name) { setRoomMsg('닉네임을 입력하세요.'); return; }
+                joinRoom(code, name);
+            }
+        }
+
+        async function createRoom(targetLines) {
+            if (!initFirebase()) { setRoomMsg('서버 연결에 실패했습니다.'); return; }
+            try {
+                const code = genRoomCode();
+                await rdb.ref('rooms/' + code + '/meta').set({
+                    targetLines: targetLines, status: 'open',
+                    createdAt: firebase.database.ServerValue.TIMESTAMP
+                });
+                isHost = true; myWon = false;
+                enterRoom(code, targetLines);
+                closeRoomModal();
+            } catch (e) { console.warn(e); setRoomMsg('방 생성에 실패했습니다.'); }
+        }
+
+        async function joinRoom(code, name) {
+            if (!initFirebase()) { setRoomMsg('서버 연결에 실패했습니다.'); return; }
+            try {
+                const snap = await rdb.ref('rooms/' + code + '/meta').once('value');
+                if (!snap.exists()) { setRoomMsg('방을 찾을 수 없습니다.'); return; }
+                const meta = snap.val() || {};
+                isHost = false; myWon = false;
+                const pref = rdb.ref('rooms/' + code + '/players').push();
+                myPlayerId = pref.key;
+                await pref.set({ name: name, lines: currentBingoLines || 0, wonAt: null,
+                    joinedAt: firebase.database.ServerValue.TIMESTAMP });
+                try { pref.onDisconnect().update({ online: false }); } catch (e) {}
+                enterRoom(code, meta.targetLines || 0);
+                closeRoomModal();
+            } catch (e) { console.warn(e); setRoomMsg('입장에 실패했습니다.'); }
+        }
+
+        function enterRoom(code, targetLines) {
+            roomCode = code; roomTargetLines = targetLines; drawsPrimed = false; roomCalls = [];
+            drawsRef = rdb.ref('rooms/' + code + '/draws');
+            playersRef = rdb.ref('rooms/' + code + '/players');
+            metaRef = rdb.ref('rooms/' + code + '/meta');
+            drawsRef.once('value').then(function(){ drawsPrimed = true; }).catch(function(){ drawsPrimed = true; });
+            drawsRef.on('child_added', onDrawAdded);
+            playersRef.on('value', function(s){ renderLeaderboard(s.val()); });
+            metaRef.on('value', function(s){ const m = s.val(); if (m && m.targetLines) { roomTargetLines = m.targetLines; updateRoomLabels(); } });
+            updateRoomVisibility(); updateRoomLabels();
+            if (!isHost) syncRoomProgress(currentBingoLines || 0);
+        }
+
+        function onDrawAdded(snap) {
+            const d = snap.val(); if (!d) return;
+            roomCalls.unshift(d);
+            const el = document.getElementById('player-last-call');
+            if (el) el.innerText = d.key + '-' + d.num;
+            renderCalls();
+            if (drawsPrimed && !isHost) playSoftTick();
+        }
+
+        function renderCalls() {
+            const box = document.getElementById('leaderboard-calls');
+            if (!box) return;
+            box.innerHTML = '';
+            roomCalls.forEach(function(d) {
+                const t = document.createElement('div');
+                t.className = 'px-2 py-0.5 glass border border-blue-500/30 text-blue-300 text-[10px] rounded font-game';
+                t.innerText = d.key + '-' + d.num;
+                box.appendChild(t);
+            });
+        }
+
+        function updateRoomVisibility() {
+            const inRoom = !!roomCode;
+            const joinBtn = document.getElementById('player-join-btn');
+            const pInfo = document.getElementById('player-room-info');
+            joinBtn.classList.toggle('hidden', inRoom && !isHost);
+            pInfo.classList.toggle('hidden', !(inRoom && !isHost));
+            pInfo.classList.toggle('flex', inRoom && !isHost);
+            const createBtn = document.getElementById('host-create-btn');
+            const hInfo = document.getElementById('host-room-info');
+            createBtn.classList.toggle('hidden', inRoom && isHost);
+            hInfo.classList.toggle('hidden', !(inRoom && isHost));
+            hInfo.classList.toggle('flex', inRoom && isHost);
+        }
+
+        function updateRoomLabels() {
+            const tgt = roomTargetLines ? ('목표 ' + roomTargetLines + '줄') : '';
+            ['player-room-target', 'host-room-target'].forEach(function(id){ const e = document.getElementById(id); if (e) e.innerText = tgt; });
+            const pc = document.getElementById('player-room-code'); if (pc) pc.innerText = roomCode || '----';
+            const hc = document.getElementById('host-room-code'); if (hc) hc.innerText = roomCode || '----';
+            const lt = document.getElementById('leaderboard-target'); if (lt) lt.innerText = (roomCode ? ('방 ' + roomCode + ' · ') : '') + tgt;
+        }
+
+        function syncRoomProgress(lines) {
+            if (!roomCode || isHost || !myPlayerId || !rdb) return;
+            const upd = { lines: lines };
+            if (!myWon && roomTargetLines > 0 && lines >= roomTargetLines) {
+                myWon = true;
+                upd.wonAt = firebase.database.ServerValue.TIMESTAMP;
+            }
+            rdb.ref('rooms/' + roomCode + '/players/' + myPlayerId).update(upd).catch(function(){});
+        }
+
+        function renderLeaderboard(playersObj) {
+            const list = document.getElementById('leaderboard-list');
+            if (!list) return;
+            const empty = '<p class="text-slate-500 text-xs text-center">아직 참가자가 없습니다.</p>';
+            if (!playersObj) { list.innerHTML = empty; return; }
+            const arr = Object.keys(playersObj).map(function(k){ return playersObj[k]; });
+            const winners = arr.filter(function(p){ return p.wonAt; }).sort(function(a,b){ return a.wonAt - b.wonAt; });
+            const rest = arr.filter(function(p){ return !p.wonAt; }).sort(function(a,b){ return (b.lines||0) - (a.lines||0); });
+            const medals = ['🥇','🥈','🥉'];
+            let html = '';
+            winners.forEach(function(p, i) {
+                const badge = medals[i] || ('#' + (i + 1));
+                html += '<div class="flex items-center justify-between glass rounded-2xl px-4 py-2 border border-yellow-500/30">' +
+                    '<span class="flex items-center gap-2 min-w-0"><span class="text-lg">' + badge + '</span>' +
+                    '<span class="text-white font-bold truncate">' + escapeHtml(p.name) + '</span></span>' +
+                    '<span class="text-yellow-300 font-game text-[11px] shrink-0">' + (p.lines || 0) + '줄 · 완성</span></div>';
+            });
+            rest.forEach(function(p) {
+                html += '<div class="flex items-center justify-between glass rounded-2xl px-4 py-2 border border-white/10">' +
+                    '<span class="text-slate-200 truncate min-w-0">' + escapeHtml(p.name) + '</span>' +
+                    '<span class="text-slate-400 font-game text-[11px] shrink-0">' + (p.lines || 0) + '줄</span></div>';
+            });
+            list.innerHTML = html || empty;
+        }
+
+        function openLeaderboard() {
+            if (!roomCode) return;
+            updateRoomLabels(); renderCalls();
+            if (playersRef) playersRef.once('value').then(function(s){ renderLeaderboard(s.val()); });
+            document.getElementById('leaderboard-modal').classList.remove('hidden');
+        }
+        function closeLeaderboard() { document.getElementById('leaderboard-modal').classList.add('hidden'); }
+
+        function exitRoom() {
+            if (!roomCode) return;
+            if (!confirm(isHost ? '방을 닫을까요?' : '방에서 나갈까요?')) return;
+            try {
+                if (drawsRef) drawsRef.off();
+                if (playersRef) playersRef.off();
+                if (metaRef) metaRef.off();
+                if (isHost) {
+                    rdb.ref('rooms/' + roomCode + '/meta/status').set('ended').catch(function(){});
+                } else if (myPlayerId) {
+                    rdb.ref('rooms/' + roomCode + '/players/' + myPlayerId).remove().catch(function(){});
+                }
+            } catch (e) {}
+            roomCode = null; myPlayerId = null; isHost = false; myWon = false; roomCalls = [];
+            drawsRef = playersRef = metaRef = null;
+            const lc = document.getElementById('player-last-call'); if (lc) lc.innerText = '-';
+            updateRoomVisibility(); closeLeaderboard();
+        }
+
         createBoard();
+        setupRoomUI();
     </script>
 </body>
 </html>
