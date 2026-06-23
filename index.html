@@ -77,6 +77,8 @@
         }
         .rank-shine { background-size: 200% auto; animation: rank-shine 2.5s linear infinite; -webkit-background-clip: text; background-clip: text; color: transparent; }
         @keyframes rank-shine { to { background-position: 200% center; } }
+        .cell-deny { animation: cell-deny 0.4s ease; }
+        @keyframes cell-deny { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
     </style>
 </head>
 <body class="flex flex-col">
@@ -347,12 +349,16 @@
                         cell.innerHTML = `<svg class="w-[50%] h-[50%] text-yellow-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.9)]" fill="currentColor" viewBox="0 0 24 24"><path d="M11 2h2v7h7v2h-7v11h-2V11H4V9h7V2z"/></svg>`;
                         cell.classList.add('marked'); boardState[r][c] = { marked: true, el: cell };
                     } else {
-                        cell.innerText = colData[l][r];
+                        const val = colData[l][r];
+                        cell.innerText = val;
+                        boardState[r][c] = { marked: false, el: cell, key: l + '-' + val };
                         cell.onclick = () => {
-                            const st = boardState[r][c]; st.marked = !st.marked;
+                            const st = boardState[r][c];
+                            // 공정성: 방에 참가 중이면 호스트가 부른 번호만 선택 가능 (해제는 허용)
+                            if (roomCode && !isHost && !st.marked && !roomCalledSet.has(st.key)) { rejectCell(cell); return; }
+                            st.marked = !st.marked;
                             cell.classList.toggle('marked', st.marked); calculateBingo();
                         };
-                        boardState[r][c] = { marked: false, el: cell };
                     }
                     grid.appendChild(cell);
                 });
@@ -445,7 +451,12 @@
         let rdb = null, roomCode = null, myPlayerId = null,
             roomTargetLines = 0, isHost = false, myWon = false,
             roomModalMode = 'player', drawsPrimed = false, pendingWinReveal = false,
-            drawsRef = null, playersRef = null, metaRef = null, roomCalls = [];
+            drawsRef = null, playersRef = null, metaRef = null, roomCalls = [], roomCalledSet = new Set();
+
+        function rejectCell(cell) {
+            cell.classList.remove('cell-deny'); void cell.offsetWidth; cell.classList.add('cell-deny');
+            setTimeout(function(){ cell.classList.remove('cell-deny'); }, 400);
+        }
 
         function escapeHtml(s) {
             return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
@@ -547,6 +558,9 @@
 
         function enterRoom(code, targetLines) {
             roomCode = code; roomTargetLines = targetLines; drawsPrimed = false; roomCalls = []; pendingWinReveal = false;
+            roomCalledSet = new Set();
+            // 공정성을 위해 참가자는 깨끗한 새 판으로 시작 (미리 찍어둔 칸 제거)
+            if (!isHost) createBoard();
             drawsRef = rdb.ref('rooms/' + code + '/draws');
             playersRef = rdb.ref('rooms/' + code + '/players');
             metaRef = rdb.ref('rooms/' + code + '/meta');
@@ -561,6 +575,7 @@
         function onDrawAdded(snap) {
             const d = snap.val(); if (!d) return;
             roomCalls.unshift(d);
+            roomCalledSet.add(d.key + '-' + d.num);
             const el = document.getElementById('player-last-call');
             if (el) el.innerText = d.key + '-' + d.num;
             renderCalls();
@@ -710,7 +725,7 @@
                     rdb.ref('rooms/' + roomCode + '/players/' + myPlayerId).remove().catch(function(){});
                 }
             } catch (e) {}
-            roomCode = null; myPlayerId = null; isHost = false; myWon = false; pendingWinReveal = false; roomCalls = [];
+            roomCode = null; myPlayerId = null; isHost = false; myWon = false; pendingWinReveal = false; roomCalls = []; roomCalledSet = new Set();
             drawsRef = playersRef = metaRef = null;
             const lc = document.getElementById('player-last-call'); if (lc) lc.innerText = '-';
             updateRoomVisibility(); closeLeaderboard(); closeRankReveal();
