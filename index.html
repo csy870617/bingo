@@ -216,7 +216,7 @@
                 </div>
             </div>
             <div id="room-join-fields" class="hidden space-y-3 mb-4">
-                <input id="room-code-input" type="text" maxlength="4" placeholder="방 코드 (예: ABCD)" class="w-full bg-black/30 border border-white/15 rounded-2xl px-4 py-3 text-white text-center font-game text-xl tracking-[0.3em] uppercase focus:outline-none focus:border-emerald-400">
+                <input id="room-code-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="방 코드 (예: 1234)" class="w-full bg-black/30 border border-white/15 rounded-2xl px-4 py-3 text-white text-center font-game text-xl tracking-[0.3em] focus:outline-none focus:border-emerald-400">
                 <input id="room-name-input" type="text" maxlength="12" placeholder="닉네임" class="w-full bg-black/30 border border-white/15 rounded-2xl px-4 py-3 text-white text-center focus:outline-none focus:border-emerald-400">
             </div>
             <p id="room-modal-msg" class="text-red-400 text-xs text-center mb-3 h-4"></p>
@@ -442,9 +442,8 @@
         }
 
         function genRoomCode() {
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
             let c = '';
-            for (let i = 0; i < 4; i++) c += chars[Math.floor(Math.random() * chars.length)];
+            for (let i = 0; i < 4; i++) c += Math.floor(Math.random() * 10);
             return c;
         }
 
@@ -480,9 +479,9 @@
                 if (!t || t < 1 || t > 12) { setRoomMsg('목표 줄 수를 1~12 사이로 입력하세요.'); return; }
                 createRoom(t);
             } else {
-                const code = (document.getElementById('room-code-input').value || '').trim().toUpperCase();
+                const code = (document.getElementById('room-code-input').value || '').trim();
                 const name = (document.getElementById('room-name-input').value || '').trim();
-                if (code.length !== 4) { setRoomMsg('방 코드 4자리를 입력하세요.'); return; }
+                if (!/^[0-9]{4}$/.test(code)) { setRoomMsg('방 코드 숫자 4자리를 입력하세요.'); return; }
                 if (!name) { setRoomMsg('닉네임을 입력하세요.'); return; }
                 joinRoom(code, name);
             }
@@ -491,7 +490,12 @@
         async function createRoom(targetLines) {
             if (!initFirebase()) { setRoomMsg('서버 연결에 실패했습니다.'); return; }
             try {
-                const code = genRoomCode();
+                let code = genRoomCode();
+                for (let i = 0; i < 5; i++) {
+                    const exist = await rdb.ref('rooms/' + code + '/meta').once('value');
+                    if (!exist.exists()) break;
+                    code = genRoomCode();
+                }
                 await rdb.ref('rooms/' + code + '/meta').set({
                     targetLines: targetLines, status: 'open',
                     createdAt: firebase.database.ServerValue.TIMESTAMP
