@@ -68,6 +68,15 @@
         @keyframes bingo-win-glow { 0%, 100% { box-shadow: 0 0 15px #fbbf24; transform: scale(0.94) rotate(3deg); } 50% { box-shadow: 0 0 30px #fff7ed; transform: scale(1.0) rotate(3deg); } }
         .rolling { animation: slot-scroll 0.1s infinite alternate; }
         @keyframes slot-scroll { from { transform: translateY(-1px); } to { transform: translateY(1px); } }
+        .rank-pop { animation: rank-pop 0.7s cubic-bezier(0.18, 0.89, 0.32, 1.28); }
+        @keyframes rank-pop { 0% { transform: scale(0) rotate(-18deg); opacity: 0; } 60% { transform: scale(1.18) rotate(6deg); } 100% { transform: scale(1) rotate(0); opacity: 1; } }
+        .rank-glow { animation: rank-glow 1.1s ease-in-out infinite alternate; }
+        @keyframes rank-glow {
+            from { text-shadow: 0 0 20px rgba(251,191,36,0.85), 0 0 45px rgba(251,191,36,0.45); }
+            to { text-shadow: 0 0 45px rgba(255,255,255,0.95), 0 0 90px rgba(251,191,36,0.85); }
+        }
+        .rank-shine { background-size: 200% auto; animation: rank-shine 2.5s linear infinite; -webkit-background-clip: text; background-clip: text; color: transparent; }
+        @keyframes rank-shine { to { background-position: 200% center; } }
     </style>
 </head>
 <body class="flex flex-col">
@@ -237,6 +246,19 @@
                 <div id="leaderboard-calls" class="flex flex-wrap gap-1.5 max-h-[15vh] overflow-y-auto"></div>
             </div>
             <button onclick="closeLeaderboard()" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-bold active:scale-95 transition">닫기</button>
+        </div>
+    </div>
+
+    <div id="rank-reveal" class="hidden fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/80 backdrop-blur-lg">
+        <div class="text-center">
+            <div id="rank-medal" class="text-7xl mb-1 rank-pop">🎉</div>
+            <p class="text-emerald-300 font-game tracking-[0.45em] uppercase text-xs mb-2">Bingo Complete</p>
+            <div class="flex items-baseline justify-center gap-2 rank-pop">
+                <span id="rank-number" class="font-game font-black text-[7.5rem] leading-none rank-glow text-yellow-300">1</span>
+                <span class="font-game font-black text-5xl text-yellow-200">위</span>
+            </div>
+            <p id="rank-sub" class="text-white text-lg font-bold mt-3">축하합니다!</p>
+            <button onclick="closeRankReveal()" class="mt-8 px-10 py-3.5 bg-yellow-500 hover:bg-yellow-400 text-black rounded-2xl font-black font-game tracking-widest uppercase shadow-xl active:scale-95 transition">확인</button>
         </div>
     </div>
 
@@ -422,7 +444,7 @@
 
         let rdb = null, roomCode = null, myPlayerId = null,
             roomTargetLines = 0, isHost = false, myWon = false,
-            roomModalMode = 'player', drawsPrimed = false,
+            roomModalMode = 'player', drawsPrimed = false, pendingWinReveal = false,
             drawsRef = null, playersRef = null, metaRef = null, roomCalls = [];
 
         function escapeHtml(s) {
@@ -524,13 +546,13 @@
         }
 
         function enterRoom(code, targetLines) {
-            roomCode = code; roomTargetLines = targetLines; drawsPrimed = false; roomCalls = [];
+            roomCode = code; roomTargetLines = targetLines; drawsPrimed = false; roomCalls = []; pendingWinReveal = false;
             drawsRef = rdb.ref('rooms/' + code + '/draws');
             playersRef = rdb.ref('rooms/' + code + '/players');
             metaRef = rdb.ref('rooms/' + code + '/meta');
             drawsRef.once('value').then(function(){ drawsPrimed = true; }).catch(function(){ drawsPrimed = true; });
             drawsRef.on('child_added', onDrawAdded);
-            playersRef.on('value', function(s){ renderLeaderboard(s.val()); });
+            playersRef.on('value', function(s){ const v = s.val(); renderLeaderboard(v); maybeRevealMyRank(v); });
             metaRef.on('value', function(s){ const m = s.val(); if (m && m.targetLines) { roomTargetLines = m.targetLines; updateRoomLabels(); } });
             updateRoomVisibility(); updateRoomLabels();
             if (!isHost) syncRoomProgress(currentBingoLines || 0);
@@ -592,10 +614,54 @@
             if (!roomCode || isHost || !myPlayerId || !rdb) return;
             const upd = { lines: lines };
             if (!myWon && roomTargetLines > 0 && lines >= roomTargetLines) {
-                myWon = true;
+                myWon = true; pendingWinReveal = true;
                 upd.wonAt = firebase.database.ServerValue.TIMESTAMP;
             }
             rdb.ref('rooms/' + roomCode + '/players/' + myPlayerId).update(upd).catch(function(){});
+        }
+
+        function maybeRevealMyRank(playersObj) {
+            if (!pendingWinReveal || !playersObj || !myPlayerId) return;
+            const mine = playersObj[myPlayerId];
+            if (!mine || !mine.wonAt) return; // 서버 타임스탬프 확정 전에는 대기
+            const winners = Object.keys(playersObj).map(function(k){ return playersObj[k]; })
+                .filter(function(p){ return p.wonAt; })
+                .sort(function(a, b){ return a.wonAt - b.wonAt; });
+            let rank = winners.indexOf(mine) + 1;
+            if (rank < 1) rank = winners.length;
+            pendingWinReveal = false;
+            showRankReveal(rank);
+        }
+
+        function showRankReveal(rank) {
+            const medals = { 1: '🥇', 2: '🥈', 3: '🥉' };
+            document.getElementById('rank-medal').innerText = medals[rank] || '🎉';
+            document.getElementById('rank-number').innerText = rank;
+            document.getElementById('rank-sub').innerText = (rank === 1)
+                ? '1등으로 빙고 완성! 축하합니다!'
+                : (rank + '등으로 빙고 완성!');
+            const ov = document.getElementById('rank-reveal');
+            ov.classList.remove('hidden');
+            ov.querySelectorAll('.rank-pop').forEach(function(el){
+                el.classList.remove('rank-pop'); void el.offsetWidth; el.classList.add('rank-pop');
+            });
+            playElegantChime();
+            fireworks();
+        }
+        function closeRankReveal() { document.getElementById('rank-reveal').classList.add('hidden'); }
+
+        function fireworks() {
+            if (typeof confetti !== 'function') return;
+            try { confetti({ particleCount: 180, spread: 110, startVelocity: 45, origin: { y: 0.45 }, zIndex: 250 }); } catch (e) {}
+            const end = Date.now() + 2600;
+            const colors = ['#fbbf24', '#f59e0b', '#fff7ed', '#a78bfa', '#60a5fa'];
+            (function frame() {
+                try {
+                    confetti({ particleCount: 6, angle: 60, spread: 75, origin: { x: 0 }, colors: colors, zIndex: 250 });
+                    confetti({ particleCount: 6, angle: 120, spread: 75, origin: { x: 1 }, colors: colors, zIndex: 250 });
+                } catch (e) {}
+                if (Date.now() < end) requestAnimationFrame(frame);
+            })();
         }
 
         function renderLeaderboard(playersObj) {
@@ -644,10 +710,10 @@
                     rdb.ref('rooms/' + roomCode + '/players/' + myPlayerId).remove().catch(function(){});
                 }
             } catch (e) {}
-            roomCode = null; myPlayerId = null; isHost = false; myWon = false; roomCalls = [];
+            roomCode = null; myPlayerId = null; isHost = false; myWon = false; pendingWinReveal = false; roomCalls = [];
             drawsRef = playersRef = metaRef = null;
             const lc = document.getElementById('player-last-call'); if (lc) lc.innerText = '-';
-            updateRoomVisibility(); closeLeaderboard();
+            updateRoomVisibility(); closeLeaderboard(); closeRankReveal();
         }
 
         createBoard();
