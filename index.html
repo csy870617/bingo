@@ -95,23 +95,22 @@
                 </div>
             </div>
 
-            <div class="flex justify-start mb-2 shrink-0">
-                <div id="bingo-counter" class="py-1 px-4 glass rounded-full border border-blue-500/30 flex items-center gap-3">
+            <div class="flex justify-between items-center mb-2 shrink-0 gap-2">
+                <div id="bingo-counter" class="py-1 px-4 glass rounded-full border border-blue-500/30 flex items-center gap-3 shrink-0">
                     <span class="text-blue-300 font-game font-bold text-[10px] tracking-widest uppercase">Lines</span>
                     <span id="line-count" class="text-white font-game font-black text-xl leading-none">0</span>
                 </div>
+                <div id="player-call-inline" class="hidden flex-col items-end leading-none min-w-0">
+                    <span id="player-call-meta" class="text-emerald-400 font-game text-[10px] tracking-widest truncate max-w-[60vw]"></span>
+                    <div class="flex items-baseline gap-1.5">
+                        <span class="text-slate-400 text-[10px] uppercase tracking-widest font-game">호출</span>
+                        <span id="player-last-call" class="text-white font-game font-black text-3xl md:text-4xl leading-none">-</span>
+                    </div>
+                </div>
             </div>
 
-            <div id="player-room-area" class="hidden items-center mb-2 shrink-0 gap-2 flex-wrap">
-                <button id="player-join-btn" onclick="openRoomModal('player')" class="py-1 px-4 glass rounded-full border border-emerald-500/40 text-emerald-300 text-[10px] font-bold font-game tracking-widest uppercase active:scale-90 transition">방 입장</button>
-                <div id="player-room-info" class="hidden items-center gap-2 flex-wrap">
-                    <span id="player-room-code" class="py-1 px-3 glass rounded-full border border-emerald-500/30 text-emerald-300 font-game font-bold text-[10px] tracking-widest">----</span>
-                    <span class="text-slate-400 text-[10px] uppercase tracking-widest font-game">호출</span>
-                    <span id="player-last-call" class="text-white font-game font-black text-base leading-none">-</span>
-                    <span id="player-room-target" class="text-slate-500 text-[10px] font-game"></span>
-                    <button onclick="openLeaderboard()" class="py-1 px-3 glass rounded-full border border-yellow-500/30 text-yellow-300 text-[10px] font-bold active:scale-90 transition">순위</button>
-                    <button onclick="exitRoom()" class="py-1 px-3 glass rounded-full border border-red-500/30 text-red-300 text-[10px] font-bold active:scale-90 transition">나가기</button>
-                </div>
+            <div id="player-room-area" class="hidden shrink-0 mb-2">
+                <button id="player-join-btn" onclick="openRoomModal('player')" class="w-full py-2.5 glass rounded-2xl border border-emerald-500/40 text-emerald-300 text-sm font-bold font-game tracking-widest uppercase active:scale-95 hover:bg-emerald-500/10 transition">＋ 방 입장하기</button>
             </div>
 
             <div class="glass p-3 md:p-5 rounded-[2.5rem] shadow-2xl border border-white/10 w-full aspect-square shrink-0 mb-4">
@@ -125,15 +124,27 @@
                 </div>
             </div>
 
-            <div class="flex gap-3 shrink-0 px-1 pb-4">
-                <button onclick="shareApp()" class="flex-1 flex items-center justify-center gap-2 py-6 glass rounded-[1.5rem] border-blue-500/30 hover:bg-blue-500/10 active:scale-95 transition group">
-                    <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
-                    <span class="text-sm font-bold text-slate-100 uppercase tracking-tight">초대하기</span>
-                </button>
-                <a href="https://csy870617.github.io/faiths/" target="_blank" class="flex-1 flex items-center justify-center gap-2 py-6 glass rounded-[1.5rem] border-yellow-500/30 hover:bg-yellow-500/10 active:scale-95 transition group">
-                    <svg class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24"><path d="M11 2h2v7h7v2h-7v11h-2V11H4V9h7V2z"/></svg>
-                    <span class="font-game text-sm font-black text-slate-100 tracking-widest uppercase">FAITHS</span>
-                </a>
+            <div class="shrink-0 px-1 pb-4">
+                <div id="player-default-actions" class="flex gap-3">
+                    <button onclick="shareApp()" class="flex-1 flex items-center justify-center gap-2 py-6 glass rounded-[1.5rem] border-blue-500/30 hover:bg-blue-500/10 active:scale-95 transition group">
+                        <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+                        <span class="text-sm font-bold text-slate-100 uppercase tracking-tight">초대하기</span>
+                    </button>
+                    <a href="https://csy870617.github.io/faiths/" target="_blank" class="flex-1 flex items-center justify-center gap-2 py-6 glass rounded-[1.5rem] border-yellow-500/30 hover:bg-yellow-500/10 active:scale-95 transition group">
+                        <svg class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24"><path d="M11 2h2v7h7v2h-7v11h-2V11H4V9h7V2z"/></svg>
+                        <span class="font-game text-sm font-black text-slate-100 tracking-widest uppercase">FAITHS</span>
+                    </a>
+                </div>
+                <div id="player-room-actions" class="hidden gap-3">
+                    <button onclick="openLeaderboard()" class="flex-1 flex items-center justify-center gap-2 py-6 glass rounded-[1.5rem] border-yellow-500/40 hover:bg-yellow-500/10 active:scale-95 transition">
+                        <svg class="w-6 h-6 text-yellow-400" fill="currentColor" viewBox="0 0 24 24"><path d="M5 3h14a1 1 0 011 1v2a4 4 0 01-3 3.87A5 5 0 0113 13.9V17h2a1 1 0 011 1v1h2v2H6v-2h2v-1a1 1 0 011-1h2v-3.1A5 5 0 017 9.87 4 4 0 014 6V4a1 1 0 011-1zm1 2v1a2 2 0 001 1.73V5H6zm12 0h-1v2.73A2 2 0 0018 6V5z"/></svg>
+                        <span class="text-base font-black text-yellow-200 uppercase tracking-widest font-game">순위</span>
+                    </button>
+                    <button onclick="exitRoom()" class="flex-1 flex items-center justify-center gap-2 py-6 glass rounded-[1.5rem] border-red-500/40 hover:bg-red-500/10 active:scale-95 transition">
+                        <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                        <span class="text-base font-black text-red-200 uppercase tracking-widest font-game">나가기</span>
+                    </button>
+                </div>
             </div>
         </div>
     </main>
@@ -145,14 +156,18 @@
                     <div class="w-6"></div><h2 class="font-game text-[10px] tracking-[0.5em] uppercase text-slate-400">Master Controller</h2>
                     <button onclick="resetHost()" class="p-2 glass rounded-xl hover:bg-purple-500/20 active:scale-90 transition"><svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg></button>
                 </div>
-                <div id="host-room-area" class="hidden items-center justify-center mb-6 gap-2 flex-wrap">
-                    <button id="host-create-btn" onclick="openRoomModal('host')" class="py-1.5 px-4 glass rounded-full border border-emerald-500/40 text-emerald-300 text-[11px] font-bold font-game tracking-widest uppercase active:scale-90 transition">방 만들기</button>
-                    <div id="host-room-info" class="hidden items-center gap-2 flex-wrap">
-                        <span class="text-slate-400 text-[10px] font-game uppercase tracking-widest">Room</span>
-                        <span id="host-room-code" class="font-game font-black text-emerald-300 text-lg tracking-[0.3em]">----</span>
-                        <span id="host-room-target" class="text-slate-500 text-[10px] font-game"></span>
-                        <button onclick="openLeaderboard()" class="py-1 px-3 glass rounded-full border border-yellow-500/30 text-yellow-300 text-[10px] font-bold active:scale-90 transition">순위</button>
-                        <button onclick="exitRoom()" class="py-1 px-3 glass rounded-full border border-red-500/30 text-red-300 text-[10px] font-bold active:scale-90 transition">닫기</button>
+                <div id="host-room-area" class="hidden flex-col items-center mb-6 gap-3">
+                    <button id="host-create-btn" onclick="openRoomModal('host')" class="py-3 px-8 glass rounded-2xl border border-emerald-500/40 text-emerald-300 text-sm font-bold font-game tracking-widest uppercase active:scale-95 hover:bg-emerald-500/10 transition">＋ 방 만들기</button>
+                    <div id="host-room-info" class="hidden flex-col items-center gap-3 w-full">
+                        <div class="flex items-baseline justify-center gap-3">
+                            <span class="text-slate-400 text-[10px] font-game uppercase tracking-widest">Room</span>
+                            <span id="host-room-code" class="font-game font-black text-emerald-300 text-3xl tracking-[0.35em]">----</span>
+                            <span id="host-room-target" class="text-slate-400 text-xs font-game"></span>
+                        </div>
+                        <div class="flex gap-3 w-full">
+                            <button onclick="openLeaderboard()" class="flex-1 py-3 glass rounded-2xl border border-yellow-500/40 text-yellow-300 text-sm font-black font-game tracking-widest uppercase active:scale-95 hover:bg-yellow-500/10 transition">순위</button>
+                            <button onclick="exitRoom()" class="flex-1 py-3 glass rounded-2xl border border-red-500/40 text-red-300 text-sm font-black font-game tracking-widest uppercase active:scale-95 hover:bg-red-500/10 transition">방 닫기</button>
+                        </div>
                     </div>
                 </div>
                 <div class="flex justify-center items-stretch gap-4 mb-8 font-game font-black">
@@ -425,10 +440,9 @@
 
         function setupRoomUI() {
             if (!ROOM_ENABLED) return; // 설정 없으면 오프라인 모드 유지
-            const pa = document.getElementById('player-room-area');
-            pa.classList.remove('hidden'); pa.classList.add('flex');
             const ha = document.getElementById('host-room-area');
             ha.classList.remove('hidden'); ha.classList.add('flex');
+            updateRoomVisibility();
         }
 
         function setRoomMsg(m) { document.getElementById('room-modal-msg').innerText = m || ''; }
@@ -525,22 +539,31 @@
 
         function updateRoomVisibility() {
             const inRoom = !!roomCode;
-            const joinBtn = document.getElementById('player-join-btn');
-            const pInfo = document.getElementById('player-room-info');
-            joinBtn.classList.toggle('hidden', inRoom && !isHost);
-            pInfo.classList.toggle('hidden', !(inRoom && !isHost));
-            pInfo.classList.toggle('flex', inRoom && !isHost);
-            const createBtn = document.getElementById('host-create-btn');
+            const playerInRoom = inRoom && !isHost;
+            const hostInRoom = inRoom && isHost;
+            // 플레이어: 입장 버튼 영역 / 호출 인라인 / 하단 액션 전환
+            document.getElementById('player-room-area').classList.toggle('hidden', !ROOM_ENABLED || playerInRoom);
+            const ci = document.getElementById('player-call-inline');
+            ci.classList.toggle('hidden', !playerInRoom);
+            ci.classList.toggle('flex', playerInRoom);
+            const defA = document.getElementById('player-default-actions');
+            const roomA = document.getElementById('player-room-actions');
+            defA.classList.toggle('hidden', playerInRoom);
+            defA.classList.toggle('flex', !playerInRoom);
+            roomA.classList.toggle('hidden', !playerInRoom);
+            roomA.classList.toggle('flex', playerInRoom);
+            // 호스트: 만들기 버튼 / 방 정보 전환
+            document.getElementById('host-create-btn').classList.toggle('hidden', hostInRoom);
             const hInfo = document.getElementById('host-room-info');
-            createBtn.classList.toggle('hidden', inRoom && isHost);
-            hInfo.classList.toggle('hidden', !(inRoom && isHost));
-            hInfo.classList.toggle('flex', inRoom && isHost);
+            hInfo.classList.toggle('hidden', !hostInRoom);
+            hInfo.classList.toggle('flex', hostInRoom);
         }
 
         function updateRoomLabels() {
             const tgt = roomTargetLines ? ('목표 ' + roomTargetLines + '줄') : '';
-            ['player-room-target', 'host-room-target'].forEach(function(id){ const e = document.getElementById(id); if (e) e.innerText = tgt; });
-            const pc = document.getElementById('player-room-code'); if (pc) pc.innerText = roomCode || '----';
+            const ht = document.getElementById('host-room-target'); if (ht) ht.innerText = tgt;
+            const cm = document.getElementById('player-call-meta');
+            if (cm) cm.innerText = (roomCode ? ('ROOM ' + roomCode) : '') + (tgt ? (' · ' + tgt) : '');
             const hc = document.getElementById('host-room-code'); if (hc) hc.innerText = roomCode || '----';
             const lt = document.getElementById('leaderboard-target'); if (lt) lt.innerText = (roomCode ? ('방 ' + roomCode + ' · ') : '') + tgt;
         }
