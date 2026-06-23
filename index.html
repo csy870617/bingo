@@ -354,8 +354,8 @@
                         boardState[r][c] = { marked: false, el: cell, key: l + '-' + val };
                         cell.onclick = () => {
                             const st = boardState[r][c];
-                            // 공정성: 방에 참가 중이면 호스트가 부른 번호만 선택 가능 (해제는 허용)
-                            if (roomCode && !isHost && !st.marked && !roomCalledSet.has(st.key)) { rejectCell(cell); return; }
+                            // 공정성: 방에 참가 중이면(호스트 포함) 부른 번호만 선택 가능 (해제는 허용)
+                            if (roomCode && myPlayerId && !st.marked && !roomCalledSet.has(st.key)) { rejectCell(cell); return; }
                             st.marked = !st.marked;
                             cell.classList.toggle('marked', st.marked); calculateBingo();
                         };
@@ -534,6 +534,12 @@
                     createdAt: firebase.database.ServerValue.TIMESTAMP
                 });
                 isHost = true; myWon = false;
+                // 호스트도 참가자로 등록 → 직접 게임에 참여하고 순위에 포함
+                const pref = rdb.ref('rooms/' + code + '/players').push();
+                myPlayerId = pref.key;
+                await pref.set({ name: '방장', lines: 0, wonAt: null,
+                    joinedAt: firebase.database.ServerValue.TIMESTAMP });
+                try { pref.onDisconnect().update({ online: false }); } catch (e) {}
                 enterRoom(code, targetLines);
                 closeRoomModal();
             } catch (e) { console.warn(e); setRoomMsg('방 생성에 실패했습니다.'); }
@@ -559,8 +565,8 @@
         function enterRoom(code, targetLines) {
             roomCode = code; roomTargetLines = targetLines; drawsPrimed = false; roomCalls = []; pendingWinReveal = false;
             roomCalledSet = new Set();
-            // 공정성을 위해 참가자는 깨끗한 새 판으로 시작 (미리 찍어둔 칸 제거)
-            if (!isHost) createBoard();
+            // 공정성을 위해 참가자(호스트 포함)는 깨끗한 새 판으로 시작
+            createBoard();
             drawsRef = rdb.ref('rooms/' + code + '/draws');
             playersRef = rdb.ref('rooms/' + code + '/players');
             metaRef = rdb.ref('rooms/' + code + '/meta');
@@ -569,7 +575,7 @@
             playersRef.on('value', function(s){ const v = s.val(); renderLeaderboard(v); maybeRevealMyRank(v); });
             metaRef.on('value', function(s){ const m = s.val(); if (m && m.targetLines) { roomTargetLines = m.targetLines; updateRoomLabels(); } });
             updateRoomVisibility(); updateRoomLabels();
-            if (!isHost) syncRoomProgress(currentBingoLines || 0);
+            syncRoomProgress(currentBingoLines || 0);
         }
 
         function onDrawAdded(snap) {
@@ -596,21 +602,20 @@
 
         function updateRoomVisibility() {
             const inRoom = !!roomCode;
-            const playerInRoom = inRoom && !isHost;
             const hostInRoom = inRoom && isHost;
-            // 플레이어: 입장 버튼 영역 / 호출 인라인 / 하단 액션 전환
-            document.getElementById('player-room-area').classList.toggle('hidden', !ROOM_ENABLED || playerInRoom);
+            // 플레이어 탭: 방에 들어가 있으면(호스트 포함) 호출/순위/나가기 표시
+            document.getElementById('player-room-area').classList.toggle('hidden', !ROOM_ENABLED || inRoom);
             const ci = document.getElementById('player-call-inline');
-            ci.classList.toggle('hidden', !playerInRoom);
-            ci.classList.toggle('flex', playerInRoom);
+            ci.classList.toggle('hidden', !inRoom);
+            ci.classList.toggle('flex', inRoom);
             const defA = document.getElementById('player-default-actions');
             const roomA = document.getElementById('player-room-actions');
-            defA.classList.toggle('hidden', playerInRoom);
-            defA.classList.toggle('flex', !playerInRoom);
-            roomA.classList.toggle('hidden', !playerInRoom);
-            roomA.classList.toggle('flex', playerInRoom);
-            // 호스트: 만들기 버튼 / 방 정보 전환
-            document.getElementById('host-create-btn').classList.toggle('hidden', hostInRoom);
+            defA.classList.toggle('hidden', inRoom);
+            defA.classList.toggle('flex', !inRoom);
+            roomA.classList.toggle('hidden', !inRoom);
+            roomA.classList.toggle('flex', inRoom);
+            // 호스트 탭: 만들기 버튼 / 방 정보 전환
+            document.getElementById('host-create-btn').classList.toggle('hidden', inRoom);
             const hInfo = document.getElementById('host-room-info');
             hInfo.classList.toggle('hidden', !hostInRoom);
             hInfo.classList.toggle('flex', hostInRoom);
@@ -626,7 +631,7 @@
         }
 
         function syncRoomProgress(lines) {
-            if (!roomCode || isHost || !myPlayerId || !rdb) return;
+            if (!roomCode || !myPlayerId || !rdb) return;
             const upd = { lines: lines };
             if (!myWon && roomTargetLines > 0 && lines >= roomTargetLines) {
                 myWon = true; pendingWinReveal = true;
