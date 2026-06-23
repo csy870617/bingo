@@ -201,9 +201,19 @@
     <div id="room-modal" class="hidden fixed inset-0 z-[110] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md">
         <div class="glass max-w-sm w-full p-8 rounded-[3rem] border border-white/20 shadow-2xl">
             <h3 id="room-modal-title" class="text-2xl font-black text-emerald-400 mb-6 font-game italic uppercase tracking-tighter border-b border-white/10 pb-4 text-center">Room</h3>
-            <div id="room-create-fields" class="hidden space-y-2 mb-4">
-                <label class="block text-slate-300 text-xs">목표 빙고 줄 수 <span class="text-slate-500">(먼저 달성한 순서로 순위가 정해집니다)</span></label>
-                <input id="room-target-input" type="number" min="1" max="12" value="3" inputmode="numeric" class="w-full bg-black/30 border border-white/15 rounded-2xl px-4 py-3 text-white text-center font-game text-xl focus:outline-none focus:border-emerald-400">
+            <div id="room-create-fields" class="hidden mb-4">
+                <label class="block text-slate-300 text-xs mb-3 text-center">목표 빙고 줄 수 <span class="text-slate-500">(먼저 달성한 순서로 순위가 정해집니다)</span></label>
+                <div class="flex items-center justify-center gap-4">
+                    <input id="room-target-input" type="text" readonly value="3" class="w-24 bg-black/30 border border-emerald-500/40 rounded-2xl py-3 text-white text-center font-game font-black text-4xl focus:outline-none select-none">
+                    <div class="flex flex-col gap-2">
+                        <button type="button" onclick="stepTarget(1)" aria-label="증가" class="w-14 h-11 glass rounded-xl border border-white/15 text-emerald-300 flex items-center justify-center active:scale-90 hover:bg-emerald-500/10 transition">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"/></svg>
+                        </button>
+                        <button type="button" onclick="stepTarget(-1)" aria-label="감소" class="w-14 h-11 glass rounded-xl border border-white/15 text-emerald-300 flex items-center justify-center active:scale-90 hover:bg-emerald-500/10 transition">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                    </div>
+                </div>
             </div>
             <div id="room-join-fields" class="hidden space-y-3 mb-4">
                 <input id="room-code-input" type="text" maxlength="4" placeholder="방 코드 (예: ABCD)" class="w-full bg-black/30 border border-white/15 rounded-2xl px-4 py-3 text-white text-center font-game text-xl tracking-[0.3em] uppercase focus:outline-none focus:border-emerald-400">
@@ -457,6 +467,12 @@
             document.getElementById('room-modal').classList.remove('hidden');
         }
         function closeRoomModal() { document.getElementById('room-modal').classList.add('hidden'); }
+
+        function stepTarget(delta) {
+            const el = document.getElementById('room-target-input');
+            let v = parseInt(el.value, 10); if (isNaN(v)) v = 3;
+            el.value = Math.max(1, Math.min(12, v + delta));
+        }
 
         function roomModalConfirm() {
             if (roomModalMode === 'host') {
