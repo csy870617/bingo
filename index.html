@@ -175,10 +175,6 @@
                             <span id="host-room-code" class="font-game font-black text-emerald-300 text-3xl tracking-[0.35em]">----</span>
                             <span id="host-room-target" class="text-slate-400 text-xs font-game"></span>
                         </div>
-                        <button onclick="inviteToRoom()" class="w-full py-3 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-sm font-black font-game tracking-widest uppercase active:scale-95 transition shadow-lg">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
-                            초대하기
-                        </button>
                         <div class="flex gap-3 w-full">
                             <button onclick="openLeaderboard()" class="flex-1 py-3 glass rounded-2xl border border-yellow-500/40 text-yellow-300 text-sm font-black font-game tracking-widest uppercase active:scale-95 hover:bg-yellow-500/10 transition">순위</button>
                             <button onclick="exitRoom()" class="flex-1 py-3 glass rounded-2xl border border-red-500/40 text-red-300 text-sm font-black font-game tracking-widest uppercase active:scale-95 hover:bg-red-500/10 transition">방 닫기</button>
@@ -190,10 +186,14 @@
                     <div id="h-number" class="flex-[1.4] h-32 md:h-44 glass flex items-center justify-center border border-blue-500/40 text-blue-400 text-6xl md:text-8xl rounded-2xl leading-none">?</div>
                 </div>
                 <button id="draw-btn" onclick="runHostDraw()" class="w-full py-5 rounded-2xl bg-blue-600 font-game font-black text-lg text-white uppercase hover:bg-blue-500 shadow-xl active:scale-95 transition">Generate Next</button>
+                <button id="host-invite-btn" onclick="inviteToRoom()" class="hidden w-full mt-3 py-3 items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-sm font-black font-game tracking-widest uppercase active:scale-95 transition shadow-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+                    초대하기
+                </button>
             </div>
             <div class="flex-1 min-h-0 overflow-y-auto px-1">
                 <div class="flex justify-between items-center mb-3 text-slate-500 font-game text-[10px] tracking-widest uppercase border-b border-white/5 pb-1">
-                    <h3>History</h3><span><span id="history-count" class="text-blue-400">0</span> / 60</span>
+                    <h3>History</h3><span><span id="history-count" class="text-blue-400">0</span> / 50</span>
                 </div>
                 <div id="h-history" class="flex flex-wrap gap-2 pb-6"></div>
             </div>
@@ -204,7 +204,7 @@
         <div class="glass max-w-sm w-full p-8 rounded-[3rem] border border-white/20 shadow-2xl text-center">
             <h3 class="text-2xl font-black text-blue-400 mb-6 font-game italic uppercase tracking-tighter border-b border-white/10 pb-4">Bingo Instruction</h3>
             <ul class="space-y-4 text-slate-300 text-xs text-left leading-relaxed">
-                <li class="flex gap-4"><span class="text-blue-500 font-black font-game text-lg">01</span><span><strong>숫자 범위:</strong> B-O 범위(1~60)의 숫자로 판이 구성됩니다.</span></li>
+                <li class="flex gap-4"><span class="text-blue-500 font-black font-game text-lg">01</span><span><strong>숫자 범위:</strong> B-O 범위(1~50)의 숫자로 판이 구성됩니다.</span></li>
                 <li class="flex gap-4"><span class="text-blue-500 font-black font-game text-xl">02</span><span><strong>체크 방법:</strong> 사회자가 부르는 숫자를 확인 후 칸을 터치하세요.</span></li>
                 <li class="flex gap-4"><span class="text-blue-500 font-black font-game text-xl">03</span><span><strong>승리 조건:</strong> 가로, 세로, 대각선으로 5칸이 연결되면 완성됩니다.</span></li>
                 <li class="flex gap-4"><span class="text-blue-500 font-black font-game text-xl">04</span><span><strong>은혜의 칸:</strong> 중앙 십자가(✝️)는 모든 성도님 보너스 칸입니다!</span></li>
@@ -271,7 +271,7 @@
     </div>
 
     <script>
-        const RANGES = { 'B': [1,12], 'I': [13,24], 'N': [25,36], 'G': [37,48], 'O': [49,60] };
+        const RANGES = { 'B': [1,10], 'I': [11,20], 'N': [21,30], 'G': [31,40], 'O': [41,50] };
         let boardState = []; let drawnSet = new Set(); let currentBingoLines = 0;
         let audioCtx = null; let drawTimer = null;
 
@@ -367,7 +367,7 @@
             document.getElementById('line-count').innerText = "0";
             const colData = {};
             ['B','I','N','G','O'].forEach(l => {
-                colData[l] = shuffle(Array.from({length: 12}, (_, i) => i + RANGES[l][0])).slice(0, 5);
+                colData[l] = shuffle(Array.from({length: 10}, (_, i) => i + RANGES[l][0])).slice(0, 5);
             });
             for (let r = 0; r < 5; r++) {
                 boardState[r] = [];
@@ -435,7 +435,7 @@
                     if (!drawnSet.has(`${k}-${n}`)) remaining.push([k, n]);
                 }
             });
-            if(remaining.length === 0) return alert("60개 번호가 모두 소진되었습니다.");
+            if(remaining.length === 0) return alert("50개 번호가 모두 소진되었습니다.");
             const btn = document.getElementById('draw-btn'); btn.disabled = true;
             const lEl = document.getElementById('h-letter'); const nEl = document.getElementById('h-number');
             lEl.classList.add('rolling'); nEl.classList.add('rolling');
@@ -443,7 +443,7 @@
             drawTimer = setInterval(() => {
                 const rk = ['B','I','N','G','O'][Math.floor(Math.random()*5)];
                 lEl.innerText = rk;
-                nEl.innerText = Math.floor(Math.random()*12) + RANGES[rk][0];
+                nEl.innerText = Math.floor(Math.random()*10) + RANGES[rk][0];
                 playSoftTick();
                 if(++cycle > 20) {
                     clearInterval(drawTimer); drawTimer = null;
@@ -648,6 +648,8 @@
             const hInfo = document.getElementById('host-room-info');
             hInfo.classList.toggle('hidden', !hostInRoom);
             hInfo.classList.toggle('flex', hostInRoom);
+            const hInvite = document.getElementById('host-invite-btn');
+            if (hInvite) { hInvite.classList.toggle('hidden', !hostInRoom); hInvite.classList.toggle('flex', hostInRoom); }
         }
 
         function updateRoomLabels() {
