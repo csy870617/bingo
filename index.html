@@ -238,7 +238,7 @@
             </div>
             <p id="room-modal-msg" class="text-red-400 text-xs text-center mb-3 h-4"></p>
             <div class="flex gap-3">
-                <button onclick="closeRoomModal()" class="flex-1 py-3 glass rounded-2xl text-slate-300 font-bold active:scale-95 transition">닫기</button>
+                <button onclick="cancelRoomModal()" class="flex-1 py-3 glass rounded-2xl text-slate-300 font-bold active:scale-95 transition">닫기</button>
                 <button id="room-modal-confirm" onclick="roomModalConfirm()" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-bold active:scale-95 transition">확인</button>
             </div>
         </div>
@@ -526,6 +526,7 @@
             document.getElementById('room-create-fields').classList.toggle('hidden', !isHostMode);
             document.getElementById('room-join-fields').classList.toggle('hidden', isHostMode);
             document.getElementById('room-modal').classList.remove('hidden');
+            pushRoomBackGuard();
         }
         function closeRoomModal() { document.getElementById('room-modal').classList.add('hidden'); }
 
@@ -605,6 +606,7 @@
             metaRef.on('value', function(s){ const m = s.val(); if (m && m.targetLines) { roomTargetLines = m.targetLines; updateRoomLabels(); } });
             updateRoomVisibility(); updateRoomLabels();
             syncRoomProgress(currentBingoLines || 0);
+            pushRoomBackGuard();
         }
 
         function onDrawAdded(snap) {
@@ -748,9 +750,8 @@
         }
         function closeLeaderboard() { document.getElementById('leaderboard-modal').classList.add('hidden'); }
 
-        function exitRoom() {
+        function leaveRoomCleanup() {
             if (!roomCode) return;
-            if (!confirm(isHost ? '방을 닫을까요?' : '방에서 나갈까요?')) return;
             try {
                 if (drawsRef) drawsRef.off();
                 if (playersRef) playersRef.off();
@@ -767,11 +768,55 @@
             updateRoomVisibility(); closeLeaderboard(); closeRankReveal();
         }
 
+        function exitRoom() {
+            if (!roomCode) return;
+            if (!confirm(isHost ? '방을 닫을까요?' : '방에서 나갈까요?')) return;
+            leaveRoomCleanup();
+            consumeRoomBackGuard();
+        }
+
+        // 뒤로 가기(브라우저/모바일) 시 페이지가 종료되지 않고 처음 화면으로 돌아가도록 처리
+        let roomBackGuard = false;
+        let suppressPopHandle = false;
+
+        function pushRoomBackGuard() {
+            if (roomBackGuard) return;
+            roomBackGuard = true;
+            try { history.pushState({ bingoRoom: true }, ''); } catch (e) {}
+        }
+        function consumeRoomBackGuard() {
+            if (!roomBackGuard) return;
+            roomBackGuard = false;
+            suppressPopHandle = true;
+            try { history.back(); } catch (e) { suppressPopHandle = false; }
+        }
+        function returnToHomeScreen() {
+            closeRoomModal();
+            if (roomCode) leaveRoomCleanup();
+            try {
+                history.replaceState({}, '', window.location.origin + window.location.pathname);
+            } catch (e) {}
+            switchView('player');
+        }
+        window.addEventListener('popstate', function() {
+            if (suppressPopHandle) { suppressPopHandle = false; return; }
+            if (!roomBackGuard) return; // 방 관련 상태가 아니면 일반 뒤로 가기 허용
+            roomBackGuard = false;
+            returnToHomeScreen();
+        });
+
+        function cancelRoomModal() {
+            closeRoomModal();
+            if (!roomCode) consumeRoomBackGuard();
+        }
+
         function handleInviteLink() {
             if (!ROOM_ENABLED) return;
             let code = '';
             try { code = (new URLSearchParams(window.location.search).get('room') || '').trim(); } catch (e) { return; }
             if (!/^[0-9]{4}$/.test(code)) return;
+            // 처음 화면(홈) 히스토리 엔트리를 확보해, 뒤로 가기 시 페이지 종료 대신 홈으로 돌아가게 함
+            try { history.replaceState({}, '', window.location.origin + window.location.pathname); } catch (e) {}
             switchView('player');
             openRoomModal('player');
             const ci = document.getElementById('room-code-input');
