@@ -396,7 +396,11 @@
         }
 
         function toggleManual(show) { document.getElementById('manual-modal').classList.toggle('hidden', !show); }
-        function confirmReset() { if(confirm("빙고판을 새로 만드시겠습니까?")) createBoard(); }
+        function confirmReset() {
+            // 이미 빙고를 완성해 순위가 서버에 기록된 뒤에는 판을 초기화하면 리더보드의 줄 수 기록이 어긋나므로 막는다
+            if (myWon) { alert('이미 빙고를 완성해 순위가 기록된 상태입니다. 초기화할 수 없습니다.'); return; }
+            if(confirm("빙고판을 새로 만드시겠습니까?")) createBoard();
+        }
 
         function calculateBingo() {
             let lines = 0; let winEls = new Set();
@@ -424,6 +428,10 @@
                 document.getElementById('draw-btn').disabled = false;
                 drawnSet.clear(); lEl.innerText = "-"; nEl.innerText = "?";
                 document.getElementById('h-history').innerHTML = ""; document.getElementById('history-count').innerText = "0";
+                // 방을 운영 중이면 서버의 뽑기 기록도 함께 지워 참가자 화면과 어긋나지 않게 한다
+                if (isHost && roomCode && rdb) {
+                    rdb.ref('rooms/' + roomCode + '/draws').remove().catch(function(){});
+                }
             }
         }
 
@@ -554,11 +562,14 @@
             if (!initFirebase()) { setRoomMsg('서버 연결에 실패했습니다.'); return; }
             try {
                 let code = genRoomCode();
+                let codeAvailable = false;
                 for (let i = 0; i < 5; i++) {
                     const exist = await rdb.ref('rooms/' + code + '/meta').once('value');
-                    if (!exist.exists()) break;
+                    if (!exist.exists()) { codeAvailable = true; break; }
                     code = genRoomCode();
                 }
+                // 마지막으로 생성한 코드까지 충돌하면 기존 방을 덮어쓰지 않고 중단한다
+                if (!codeAvailable) { setRoomMsg('방 코드 생성에 실패했습니다. 다시 시도해주세요.'); return; }
                 await rdb.ref('rooms/' + code + '/meta').set({
                     targetLines: targetLines, status: 'open',
                     createdAt: firebase.database.ServerValue.TIMESTAMP
@@ -581,6 +592,7 @@
                 const snap = await rdb.ref('rooms/' + code + '/meta').once('value');
                 if (!snap.exists()) { setRoomMsg('방을 찾을 수 없습니다.'); return; }
                 const meta = snap.val() || {};
+                if (meta.status && meta.status !== 'open') { setRoomMsg('이미 종료된 방입니다.'); return; }
                 isHost = false; myWon = false;
                 const pref = rdb.ref('rooms/' + code + '/players').push();
                 myPlayerId = pref.key;
@@ -603,7 +615,17 @@
             drawsRef.once('value').then(function(){ drawsPrimed = true; }).catch(function(){ drawsPrimed = true; });
             drawsRef.on('child_added', onDrawAdded);
             playersRef.on('value', function(s){ const v = s.val(); renderLeaderboard(v); maybeRevealMyRank(v); });
-            metaRef.on('value', function(s){ const m = s.val(); if (m && m.targetLines) { roomTargetLines = m.targetLines; updateRoomLabels(); } });
+            metaRef.on('value', function(s){
+                const m = s.val();
+                if (!m) return;
+                if (m.targetLines) { roomTargetLines = m.targetLines; updateRoomLabels(); }
+                // 호스트가 방을 닫으면(status: ended) 접속 중인 참가자도 좀비 상태로 남지 않도록 자동으로 나가게 한다
+                if (m.status && m.status !== 'open' && roomCode && !isHost) {
+                    leaveRoomCleanup(true);
+                    consumeRoomBackGuard();
+                    alert('호스트가 방을 닫았습니다.');
+                }
+            });
             updateRoomVisibility(); updateRoomLabels();
             syncRoomProgress(currentBingoLines || 0);
             pushRoomBackGuard();
@@ -750,13 +772,13 @@
         }
         function closeLeaderboard() { document.getElementById('leaderboard-modal').classList.add('hidden'); }
 
-        function leaveRoomCleanup() {
+        function leaveRoomCleanup(remoteEnded) {
             if (!roomCode) return;
             try {
                 if (drawsRef) drawsRef.off();
                 if (playersRef) playersRef.off();
                 if (metaRef) metaRef.off();
-                if (isHost) {
+                if (isHost && !remoteEnded) {
                     rdb.ref('rooms/' + roomCode + '/meta/status').set('ended').catch(function(){});
                 } else if (myPlayerId) {
                     rdb.ref('rooms/' + roomCode + '/players/' + myPlayerId).remove().catch(function(){});
