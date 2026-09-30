@@ -1,0 +1,46 @@
+{
+  "rules": {
+    "rooms": {
+      ".indexOn": ["meta/createdAt"],
+      ".read": "auth != null && query.orderByChild == 'meta/createdAt' && query.limitToFirst != null && query.limitToFirst <= 20",
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null && !newData.exists() && (data.child('meta/hostUid').val() === auth.uid || !data.child('meta/createdAt').exists() || data.child('meta/createdAt').val() < now - 86400000)",
+        ".validate": "$code.matches(/^[0-9]{4}$/)",
+        "meta": {
+          ".write": "auth != null && newData.exists() && newData.child('hostUid').val() === auth.uid && (!data.exists() || data.child('hostUid').val() === auth.uid)",
+          ".validate": "newData.hasChildren(['targetLines', 'status', 'createdAt', 'hostUid'])",
+          "targetLines": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 12" },
+          "status": { ".validate": "newData.val() === 'open' || newData.val() === 'ended'" },
+          "createdAt": { ".validate": "newData.isNumber() && newData.val() <= now" },
+          "hostUid": { ".validate": "newData.isString()" },
+          "$other": { ".validate": false }
+        },
+        "draws": {
+          ".write": "auth != null && root.child('rooms/' + $code + '/meta/hostUid').val() === auth.uid",
+          "$drawId": {
+            ".validate": "newData.hasChildren(['key', 'num', 'at'])",
+            "key": { ".validate": "newData.isString() && newData.val().matches(/^[BINGO]$/)" },
+            "num": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 50" },
+            "at": { ".validate": "newData.isNumber() && newData.val() <= now" },
+            "$other": { ".validate": false }
+          }
+        },
+        "players": {
+          "$pid": {
+            ".write": "auth != null && (data.exists() ? data.child('uid').val() === auth.uid : (newData.child('uid').val() === auth.uid && root.child('rooms/' + $code + '/meta/status').val() === 'open'))",
+            ".validate": "newData.hasChildren(['name', 'uid', 'lines', 'joinedAt'])",
+            "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 12" },
+            "uid": { ".validate": "newData.val() === auth.uid" },
+            "lines": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 12" },
+            "wonAt": { ".validate": "newData.isNumber() && newData.val() <= now && newData.parent().child('lines').val() >= root.child('rooms/' + $code + '/meta/targetLines').val()" },
+            "joinedAt": { ".validate": "newData.isNumber() && newData.val() <= now" },
+            "online": { ".validate": "newData.isBoolean()" },
+            "$other": { ".validate": false }
+          }
+        },
+        "$other": { ".validate": false }
+      }
+    }
+  }
+}

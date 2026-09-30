@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BINGO PRO: EXTERNAL OPEN</title>
     <link rel="icon" href="data:,">
     
@@ -16,6 +16,7 @@
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Noto+Sans+KR:wght@300;700&display=swap" rel="stylesheet">
     
     <script>
@@ -42,6 +43,7 @@
             height: 100dvh; width: 100vw;
             overflow: hidden; margin: 0; padding: 0;
             overscroll-behavior: none;
+            touch-action: manipulation; /* 두 손가락 확대는 허용하고, 칸을 빠르게 두 번 누를 때의 더블탭 확대는 막는다 */
             background: radial-gradient(circle at center, #1e293b, #0f172a); 
             color: #f8fafc; font-family: 'Noto Sans KR', sans-serif; 
         }
@@ -548,6 +550,27 @@
             } catch (e) { console.warn('Firebase 초기화 실패', e); return false; }
         }
 
+        // 보안 규칙(database.rules.json)이 방장/참가자를 구분할 수 있도록 익명 로그인한다.
+        // 콘솔에서 익명 로그인을 켜지 않았으면 실패하며, 그때는 uid 없이 기존처럼 동작한다.
+        let authPromise = null;
+        function ensureAuth() {
+            if (!window.firebase || typeof firebase.auth !== 'function') return Promise.resolve(null);
+            if (!authPromise) {
+                authPromise = firebase.auth().signInAnonymously()
+                    .then(function(cred) { return cred.user.uid; })
+                    .catch(function(e) { console.info('익명 로그인을 사용할 수 없어 로그인 없이 진행합니다.', e && e.code); authPromise = null; return null; });
+            }
+            return authPromise;
+        }
+
+        // 만든 지 이틀이 지난 방(또는 정보가 깨진 방)을 조금씩 지워 데이터가 쌓이지 않게 한다
+        function sweepOldRooms() {
+            const cutoff = Date.now() - 2 * 86400000;
+            rdb.ref('rooms').orderByChild('meta/createdAt').endAt(cutoff).limitToFirst(20).once('value')
+                .then(function(s) { s.forEach(function(c) { c.ref.remove().catch(function(){}); }); })
+                .catch(function(){});
+        }
+
         function genRoomCode() {
             let c = '';
             for (let i = 0; i < 4; i++) c += Math.floor(Math.random() * 10);
@@ -605,6 +628,7 @@
         async function createRoom(targetLines) {
             if (!initFirebase()) { setRoomMsg('서버 연결에 실패했습니다.'); return; }
             try {
+                const uid = await ensureAuth();
                 let code = genRoomCode();
                 let codeAvailable = false;
                 for (let i = 0; i < 5; i++) {
@@ -615,26 +639,28 @@
                 // 마지막으로 생성한 코드까지 충돌하면 기존 방을 덮어쓰지 않고 중단한다
                 if (!codeAvailable) { setRoomMsg('방 코드 생성에 실패했습니다. 다시 시도해주세요.'); return; }
                 await rdb.ref('rooms/' + code + '/meta').set({
-                    targetLines: targetLines, status: 'open',
+                    targetLines: targetLines, status: 'open', hostUid: uid,
                     createdAt: firebase.database.ServerValue.TIMESTAMP
                 });
                 isHost = true; myWon = false;
                 // 호스트도 참가자로 등록 → 직접 게임에 참여하고 순위에 포함
                 const pref = rdb.ref('rooms/' + code + '/players').push();
                 myPlayerId = pref.key;
-                await pref.set({ name: '방장', lines: 0, wonAt: null,
+                await pref.set({ name: '방장', lines: 0, wonAt: null, uid: uid,
                     joinedAt: firebase.database.ServerValue.TIMESTAMP });
                 try { pref.onDisconnect().update({ online: false }); } catch (e) {}
                 // 방을 만들기 전에 뽑은 번호는 참가자에게 전달되지 않았으므로, 새 방은 빈 기록에서 시작한다
                 clearHostDraws();
                 enterRoom(code, targetLines);
                 closeRoomModal();
+                if (uid) sweepOldRooms();
             } catch (e) { console.warn(e); setRoomMsg('방 생성에 실패했습니다.'); }
         }
 
         async function joinRoom(code, name) {
             if (!initFirebase()) { setRoomMsg('서버 연결에 실패했습니다.'); return; }
             try {
+                const uid = await ensureAuth();
                 const snap = await rdb.ref('rooms/' + code + '/meta').once('value');
                 if (!snap.exists()) { setRoomMsg('방을 찾을 수 없습니다.'); return; }
                 const meta = snap.val() || {};
@@ -642,7 +668,7 @@
                 isHost = false; myWon = false;
                 const pref = rdb.ref('rooms/' + code + '/players').push();
                 myPlayerId = pref.key;
-                await pref.set({ name: name, lines: currentBingoLines || 0, wonAt: null,
+                await pref.set({ name: name, lines: currentBingoLines || 0, wonAt: null, uid: uid,
                     joinedAt: firebase.database.ServerValue.TIMESTAMP });
                 try { pref.onDisconnect().update({ online: false }); } catch (e) {}
                 enterRoom(code, meta.targetLines || 0);
@@ -664,10 +690,9 @@
             playersRef.on('value', function(s){ const v = s.val(); renderLeaderboard(v); maybeRevealMyRank(v); });
             metaRef.on('value', function(s){
                 const m = s.val();
-                if (!m) return;
-                if (m.targetLines) { roomTargetLines = m.targetLines; updateRoomLabels(); }
-                // 호스트가 방을 닫으면(status: ended) 접속 중인 참가자도 좀비 상태로 남지 않도록 자동으로 나가게 한다
-                if (m.status && m.status !== 'open' && roomCode && !isHost) {
+                if (m && m.targetLines) { roomTargetLines = m.targetLines; updateRoomLabels(); }
+                // 호스트가 방을 닫으면(status: ended 후 방 삭제) 접속 중인 참가자도 좀비 상태로 남지 않도록 자동으로 나가게 한다
+                if ((!m || (m.status && m.status !== 'open')) && roomCode && !isHost) {
                     leaveRoomCleanup(true);
                     consumeRoomBackGuard();
                     alert('호스트가 방을 닫았습니다.');
@@ -836,8 +861,14 @@
                 if (drawsRef) drawsRef.off();
                 if (playersRef) playersRef.off();
                 if (metaRef) metaRef.off();
+                // 나간 뒤 연결이 끊길 때 onDisconnect가 빈 참가자 기록을 다시 만들지 않도록 취소한다
+                if (myPlayerId) rdb.ref('rooms/' + roomCode + '/players/' + myPlayerId).onDisconnect().cancel().catch(function(){});
                 if (isHost && !remoteEnded) {
-                    rdb.ref('rooms/' + roomCode + '/meta/status').set('ended').catch(function(){});
+                    // 참가자에게 종료를 알린 뒤(status: ended) 방 데이터를 지워 서버에 쌓이지 않게 한다
+                    const roomRef = rdb.ref('rooms/' + roomCode);
+                    roomRef.child('meta/status').set('ended')
+                        .then(function() { return roomRef.remove(); })
+                        .catch(function(){});
                 } else if (myPlayerId) {
                     rdb.ref('rooms/' + roomCode + '/players/' + myPlayerId).remove().catch(function(){});
                 }
