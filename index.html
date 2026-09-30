@@ -12,7 +12,6 @@
     <meta property="og:url" content="https://csy870617.github.io/bingo/">
     <meta property="og:type" content="website">
 
-    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -82,6 +81,8 @@
         .cell-deny { animation: cell-deny 0.4s ease; }
         @keyframes cell-deny { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
     </style>
+    <!-- Tailwind: CDN(런타임 생성) 대신 미리 빌드한 CSS 사용. 기존 CDN과 같은 우선순위를 위해 위 <style> 뒤에 둔다 -->
+    <link rel="stylesheet" href="tailwind.css">
 </head>
 <body class="flex flex-col">
 
