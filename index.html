@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>BINGO PRO: EXTERNAL OPEN</title>
+    <link rel="icon" href="data:,">
     
     <meta property="og:title" content="함께 BINGO 해요!">
     <meta property="og:description" content="공동체와 함께하는 즐거운 빙고 시간">
@@ -311,20 +312,25 @@
             return arr;
         }
 
+        // 공유 시트를 띄우고, 사용할 수 없거나 실패하면(사용자가 취소한 경우 제외) 링크 복사로 대신한다
+        async function shareOrCopy(shareData, copiedMsg, promptMsg) {
+            if (navigator.share) {
+                try { await navigator.share(shareData); return; }
+                catch (err) { if (err && err.name === 'AbortError') return; }
+            }
+            try {
+                await navigator.clipboard.writeText(shareData.url);
+                alert(copiedMsg);
+            } catch (err) { prompt(promptMsg, shareData.url); }
+        }
+
         async function shareApp() {
             const shareData = {
                 title: '함께 BINGO 해요!',
                 text: '공동체와 함께하는 즐거운 빙고 시간',
                 url: 'https://csy870617.github.io/bingo/'
             };
-            if (navigator.share) {
-                try { await navigator.share(shareData); } catch (err) { }
-            } else {
-                try {
-                    await navigator.clipboard.writeText(shareData.url);
-                    alert('링크가 복사되었습니다!');
-                } catch (err) { prompt('이 링크를 복사해주세요:', shareData.url); }
-            }
+            await shareOrCopy(shareData, '링크가 복사되었습니다!', '이 링크를 복사해주세요:');
         }
         
         function buildInviteUrl(code) {
@@ -340,14 +346,7 @@
                 text: '방 코드 ' + roomCode + ' 로 빙고에 참여하세요!',
                 url: url
             };
-            if (navigator.share) {
-                try { await navigator.share(shareData); } catch (err) { }
-            } else {
-                try {
-                    await navigator.clipboard.writeText(url);
-                    alert('초대 링크가 복사되었습니다!\n' + url);
-                } catch (err) { prompt('이 초대 링크를 복사해주세요:', url); }
-            }
+            await shareOrCopy(shareData, '초대 링크가 복사되었습니다!\n' + url, '이 초대 링크를 복사해주세요:');
         }
 
         function openQrModal() {
@@ -453,14 +452,18 @@
             syncRoomProgress(lines);
         }
 
+        function clearHostDraws() {
+            if (drawTimer) { clearInterval(drawTimer); drawTimer = null; }
+            const lEl = document.getElementById('h-letter'); const nEl = document.getElementById('h-number');
+            lEl.classList.remove('rolling'); nEl.classList.remove('rolling');
+            document.getElementById('draw-btn').disabled = false;
+            drawnSet.clear(); lEl.innerText = "-"; nEl.innerText = "?";
+            document.getElementById('h-history').innerHTML = ""; document.getElementById('history-count').innerText = "0";
+        }
+
         function resetHost() {
             if(confirm("기록을 초기화할까요?")) {
-                if (drawTimer) { clearInterval(drawTimer); drawTimer = null; }
-                const lEl = document.getElementById('h-letter'); const nEl = document.getElementById('h-number');
-                lEl.classList.remove('rolling'); nEl.classList.remove('rolling');
-                document.getElementById('draw-btn').disabled = false;
-                drawnSet.clear(); lEl.innerText = "-"; nEl.innerText = "?";
-                document.getElementById('h-history').innerHTML = ""; document.getElementById('history-count').innerText = "0";
+                clearHostDraws();
                 // 방을 운영 중이면 서버의 뽑기 기록도 함께 지워 참가자 화면과 어긋나지 않게 한다
                 if (isHost && roomCode && rdb) {
                     rdb.ref('rooms/' + roomCode + '/draws').remove().catch(function(){});
@@ -577,18 +580,25 @@
             el.value = Math.max(1, Math.min(12, v + delta));
         }
 
-        function roomModalConfirm() {
+        // 확인 버튼을 연속으로 누르면 방이 두 개 만들어지거나 참가자가 중복 등록되므로 처리 중에는 막는다
+        let roomRequestBusy = false;
+        async function roomModalConfirm() {
+            if (roomRequestBusy) return;
+            let task = null;
             if (roomModalMode === 'host') {
                 const t = parseInt(document.getElementById('room-target-input').value, 10);
                 if (!t || t < 1 || t > 12) { setRoomMsg('목표 줄 수를 1~12 사이로 입력하세요.'); return; }
-                createRoom(t);
+                task = function() { return createRoom(t); };
             } else {
                 const code = (document.getElementById('room-code-input').value || '').trim();
                 const name = (document.getElementById('room-name-input').value || '').trim();
                 if (!/^[0-9]{4}$/.test(code)) { setRoomMsg('방 코드 숫자 4자리를 입력하세요.'); return; }
                 if (!name) { setRoomMsg('닉네임을 입력하세요.'); return; }
-                joinRoom(code, name);
+                task = function() { return joinRoom(code, name); };
             }
+            const btn = document.getElementById('room-modal-confirm');
+            roomRequestBusy = true; btn.disabled = true;
+            try { await task(); } finally { roomRequestBusy = false; btn.disabled = false; }
         }
 
         async function createRoom(targetLines) {
@@ -614,6 +624,8 @@
                 await pref.set({ name: '방장', lines: 0, wonAt: null,
                     joinedAt: firebase.database.ServerValue.TIMESTAMP });
                 try { pref.onDisconnect().update({ online: false }); } catch (e) {}
+                // 방을 만들기 전에 뽑은 번호는 참가자에게 전달되지 않았으므로, 새 방은 빈 기록에서 시작한다
+                clearHostDraws();
                 enterRoom(code, targetLines);
                 closeRoomModal();
             } catch (e) { console.warn(e); setRoomMsg('방 생성에 실패했습니다.'); }
@@ -647,6 +659,7 @@
             metaRef = rdb.ref('rooms/' + code + '/meta');
             drawsRef.once('value').then(function(){ drawsPrimed = true; }).catch(function(){ drawsPrimed = true; });
             drawsRef.on('child_added', onDrawAdded);
+            drawsRef.on('child_removed', onDrawRemoved);
             playersRef.on('value', function(s){ const v = s.val(); renderLeaderboard(v); maybeRevealMyRank(v); });
             metaRef.on('value', function(s){
                 const m = s.val();
@@ -666,12 +679,23 @@
 
         function onDrawAdded(snap) {
             const d = snap.val(); if (!d) return;
+            d.id = snap.key;
             roomCalls.unshift(d);
             roomCalledSet.add(d.key + '-' + d.num);
             const el = document.getElementById('player-last-call');
             if (el) el.innerText = d.key + '-' + d.num;
             renderCalls();
             if (drawsPrimed && !isHost) playSoftTick();
+        }
+
+        // 호스트가 기록을 초기화하면(서버 draws 삭제) 참가자 쪽 호출 번호도 함께 지운다
+        function onDrawRemoved(snap) {
+            const d = snap.val(); if (!d) return;
+            roomCalls = roomCalls.filter(function(x) { return x.id !== snap.key; });
+            roomCalledSet.delete(d.key + '-' + d.num);
+            const el = document.getElementById('player-last-call');
+            if (el) el.innerText = roomCalls.length ? (roomCalls[0].key + '-' + roomCalls[0].num) : '-';
+            renderCalls();
         }
 
         function renderCalls() {
@@ -787,12 +811,12 @@
                 html += '<div class="flex items-center justify-between glass rounded-2xl px-4 py-2 border border-yellow-500/30">' +
                     '<span class="flex items-center gap-2 min-w-0"><span class="text-lg">' + badge + '</span>' +
                     '<span class="text-white font-bold truncate">' + escapeHtml(p.name) + '</span></span>' +
-                    '<span class="text-yellow-300 font-game text-[11px] shrink-0">' + (p.lines || 0) + '줄 · 완성</span></div>';
+                    '<span class="text-yellow-300 font-game text-[11px] shrink-0">' + (Number(p.lines) || 0) + '줄 · 완성</span></div>';
             });
             rest.forEach(function(p) {
                 html += '<div class="flex items-center justify-between glass rounded-2xl px-4 py-2 border border-white/10">' +
                     '<span class="text-slate-200 truncate min-w-0">' + escapeHtml(p.name) + '</span>' +
-                    '<span class="text-slate-400 font-game text-[11px] shrink-0">' + (p.lines || 0) + '줄</span></div>';
+                    '<span class="text-slate-400 font-game text-[11px] shrink-0">' + (Number(p.lines) || 0) + '줄</span></div>';
             });
             list.innerHTML = html || empty;
         }
@@ -800,7 +824,7 @@
         function openLeaderboard() {
             if (!roomCode) return;
             updateRoomLabels(); renderCalls();
-            if (playersRef) playersRef.once('value').then(function(s){ renderLeaderboard(s.val()); });
+            if (playersRef) playersRef.once('value').then(function(s){ renderLeaderboard(s.val()); }).catch(function(e){ console.warn(e); });
             document.getElementById('leaderboard-modal').classList.remove('hidden');
         }
         function closeLeaderboard() { document.getElementById('leaderboard-modal').classList.add('hidden'); }
