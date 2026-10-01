@@ -397,7 +397,9 @@
             document.getElementById('tab-host-line').classList.toggle('active-line', !isP);
         }
 
-        function createBoard() {
+        // saved: 새로고침 후 방에 다시 들어올 때 복원할 판 (25칸의 { key: 'B-3', marked } 배열, 가운데 칸은 null)
+        function createBoard(saved) {
+            if (!isValidSavedBoard(saved)) saved = null;
             const grid = document.getElementById('board-grid'); grid.innerHTML = ''; boardState = []; currentBingoLines = 0;
             document.getElementById('line-count').innerText = "0";
             const colData = {};
@@ -413,9 +415,12 @@
                         cell.innerHTML = `<svg class="w-[50%] h-[50%] text-yellow-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.9)]" fill="currentColor" viewBox="0 0 24 24"><path d="M11 2h2v7h7v2h-7v11h-2V11H4V9h7V2z"/></svg>`;
                         cell.classList.add('marked'); boardState[r][c] = { marked: true, el: cell };
                     } else {
-                        const val = colData[l][r];
+                        const savedCell = saved ? saved[r * 5 + c] : null;
+                        const val = savedCell ? Number(savedCell.key.split('-')[1]) : colData[l][r];
+                        const wasMarked = !!(savedCell && savedCell.marked);
                         cell.innerText = val;
-                        boardState[r][c] = { marked: false, el: cell, key: l + '-' + val };
+                        if (wasMarked) cell.classList.add('marked');
+                        boardState[r][c] = { marked: wasMarked, el: cell, key: l + '-' + val };
                         cell.onclick = () => {
                             const st = boardState[r][c];
                             // 공정성: 방에 참가 중이면(호스트 포함) 부른 번호만 선택 가능 (해제는 허용)
@@ -427,7 +432,28 @@
                     grid.appendChild(cell);
                 });
             }
-            calculateBingo();
+            calculateBingo(!!saved);
+        }
+
+        function isValidSavedBoard(saved) {
+            if (!Array.isArray(saved) || saved.length !== 25) return false;
+            return saved.every(function(s, i) {
+                if (i === 12) return true;
+                if (!s || typeof s.key !== 'string') return false;
+                const m = /^([BINGO])-(\d+)$/.exec(s.key);
+                if (!m || m[1] !== 'BINGO'[i % 5]) return false;
+                const n = Number(m[2]);
+                return n >= RANGES[m[1]][0] && n <= RANGES[m[1]][1];
+            });
+        }
+
+        function serializeBoard() {
+            const out = [];
+            for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) {
+                const st = boardState[r][c];
+                out.push(st.key ? { key: st.key, marked: !!st.marked } : null);
+            }
+            return out;
         }
 
         function toggleManual(show) { document.getElementById('manual-modal').classList.toggle('hidden', !show); }
@@ -437,7 +463,8 @@
             if(confirm("빙고판을 새로 만드시겠습니까?")) createBoard();
         }
 
-        function calculateBingo() {
+        // quiet: 저장된 판을 복원할 때는 이미 완성했던 줄로 폭죽을 다시 터뜨리지 않는다
+        function calculateBingo(quiet) {
             let lines = 0; let winEls = new Set();
             const getMarked = (r, c) => boardState[r][c].marked;
             for(let i=0; i<5; i++) {
@@ -448,11 +475,12 @@
             if([0,1,2,3,4].every(i => getMarked(i, 4-i))) { lines++; [0,1,2,3,4].forEach(i => winEls.add(boardState[i][4-i].el)); }
             document.querySelectorAll('.bingo-cell').forEach(el => el.classList.remove('win-cell'));
             winEls.forEach(el => el.classList.add('win-cell'));
-            if (lines > currentBingoLines && typeof confetti === 'function') {
+            if (!quiet && lines > currentBingoLines && typeof confetti === 'function') {
                 try { confetti({ particleCount: 150, spread: 70, origin: { y: 0.7 } }); } catch (e) { }
             }
             currentBingoLines = lines; document.getElementById('line-count').innerText = lines;
             syncRoomProgress(lines);
+            saveRoomSession();
         }
 
         function clearHostDraws() {
@@ -501,12 +529,16 @@
                     if (isHost && roomCode && rdb) {
                         rdb.ref('rooms/' + roomCode + '/draws').push({ key: key, num: num, at: firebase.database.ServerValue.TIMESTAMP }).catch(function(){});
                     }
-                    const tag = document.createElement('div');
-                    tag.className = "px-3 py-1 glass border border-blue-500/30 text-blue-300 text-[10px] rounded-lg font-game shadow-lg";
-                    tag.innerText = `${key}-${num}`; document.getElementById('h-history').prepend(tag);
-                    document.getElementById('history-count').innerText = drawnSet.size;
+                    addHostHistoryTag(key, num);
                 }
             }, 80);
+        }
+
+        function addHostHistoryTag(key, num) {
+            const tag = document.createElement('div');
+            tag.className = "px-3 py-1 glass border border-blue-500/30 text-blue-300 text-[10px] rounded-lg font-game shadow-lg";
+            tag.innerText = `${key}-${num}`; document.getElementById('h-history').prepend(tag);
+            document.getElementById('history-count').innerText = drawnSet.size;
         }
 
         /* ===================== 실시간 방 (Firebase) ===================== */
@@ -676,11 +708,11 @@
             } catch (e) { console.warn(e); setRoomMsg('입장에 실패했습니다.'); }
         }
 
-        function enterRoom(code, targetLines) {
+        function enterRoom(code, targetLines, savedBoard) {
             roomCode = code; roomTargetLines = targetLines; drawsPrimed = false; roomCalls = []; pendingWinReveal = false;
             roomCalledSet = new Set();
-            // 공정성을 위해 참가자(호스트 포함)는 깨끗한 새 판으로 시작
-            createBoard();
+            // 공정성을 위해 참가자(호스트 포함)는 깨끗한 새 판으로 시작 (새로고침 후 재접속이면 원래 판을 복원)
+            createBoard(savedBoard);
             drawsRef = rdb.ref('rooms/' + code + '/draws');
             playersRef = rdb.ref('rooms/' + code + '/players');
             metaRef = rdb.ref('rooms/' + code + '/meta');
@@ -875,8 +907,110 @@
             } catch (e) {}
             roomCode = null; myPlayerId = null; isHost = false; myWon = false; pendingWinReveal = false; roomCalls = []; roomCalledSet = new Set();
             drawsRef = playersRef = metaRef = null;
+            clearRoomSession();
             const lc = document.getElementById('player-last-call'); if (lc) lc.innerText = '-';
             updateRoomVisibility(); closeLeaderboard(); closeQrModal(); closeRankReveal();
+        }
+
+        /* ---------- 새로고침/앱 전환 후 방에 다시 들어가기 ---------- */
+        // 방 코드·내 참가 정보·빙고판을 이 기기에 저장해 두었다가, 페이지가 다시 열리면 같은 방·같은 판으로 이어서 한다
+        const ROOM_SESSION_KEY = 'bingo.roomSession.v1';
+
+        function saveRoomSession() {
+            if (!roomCode || !myPlayerId) return;
+            try {
+                localStorage.setItem(ROOM_SESSION_KEY, JSON.stringify({
+                    code: roomCode, playerId: myPlayerId, isHost: isHost,
+                    board: serializeBoard(), savedAt: Date.now()
+                }));
+            } catch (e) {}
+        }
+        function loadRoomSession() {
+            try {
+                const s = JSON.parse(localStorage.getItem(ROOM_SESSION_KEY) || 'null');
+                if (s && /^[0-9]{4}$/.test(s.code) && typeof s.playerId === 'string') return s;
+            } catch (e) {}
+            return null;
+        }
+        function clearRoomSession() {
+            try { localStorage.removeItem(ROOM_SESSION_KEY); } catch (e) {}
+        }
+
+        async function resumeRoomSession(s) {
+            if (!initFirebase()) return;
+            try {
+                const uid = await ensureAuth();
+                const meta = (await rdb.ref('rooms/' + s.code + '/meta').once('value')).val();
+                const meSnap = await rdb.ref('rooms/' + s.code + '/players/' + s.playerId).once('value');
+                const me = meSnap.val();
+                const roomEnded = !meta || meta.status !== 'open';
+                const sameUser = !uid || !me || !me.uid || me.uid === uid;
+                if (roomEnded || !me || !sameUser) {
+                    clearRoomSession();
+                    // 최근까지 참여하던 방이 끝났으면 알려준다
+                    if (roomEnded && Date.now() - (s.savedAt || 0) < 12 * 3600000) alert('참여하던 방(' + s.code + ')이 종료되었습니다.');
+                    return;
+                }
+                if (roomCode) return; // 기다리는 사이 사용자가 다른 방에 들어갔으면 그대로 둔다
+                isHost = !!s.isHost; myPlayerId = s.playerId; myWon = !!me.wonAt;
+                try { meSnap.ref.onDisconnect().update({ online: false }); } catch (e) {}
+                if (isHost) clearHostDraws();
+                switchView(isHost ? 'host' : 'player');
+                enterRoom(s.code, meta.targetLines || 0, s.board);
+                if (isHost) restoreHostDraws(s.code);
+            } catch (e) { console.warn('방 재접속 실패', e); }
+        }
+
+        // 방장이 새로고침했을 때 서버에 남아 있는 호출 기록으로 뽑기 상태와 기록 목록을 되살린다
+        function restoreHostDraws(code) {
+            rdb.ref('rooms/' + code + '/draws').once('value').then(function(s) {
+                if (roomCode !== code || !isHost) return;
+                let last = null;
+                s.forEach(function(c) {
+                    const d = c.val(); if (!d) return;
+                    drawnSet.add(d.key + '-' + d.num); addHostHistoryTag(d.key, d.num); last = d;
+                });
+                if (last) {
+                    document.getElementById('h-letter').innerText = last.key;
+                    document.getElementById('h-number').innerText = last.num;
+                }
+            }).catch(function(e) { console.warn(e); });
+        }
+
+        // 다른 방 초대 링크로 들어온 경우: 참여 중이던 방에서 나가고 새 방 입장 화면으로 간다
+        async function abandonRoomSession(s) {
+            clearRoomSession();
+            if (!initFirebase()) return;
+            try {
+                await ensureAuth();
+                const roomRef = rdb.ref('rooms/' + s.code);
+                if (s.isHost) {
+                    await roomRef.child('meta/status').set('ended');
+                    await roomRef.remove();
+                } else {
+                    await roomRef.child('players/' + s.playerId).remove();
+                }
+            } catch (e) {}
+        }
+
+        function getInviteCode() {
+            try {
+                const code = (new URLSearchParams(window.location.search).get('room') || '').trim();
+                return /^[0-9]{4}$/.test(code) ? code : '';
+            } catch (e) { return ''; }
+        }
+
+        function startRoomFeatures() {
+            const saved = ROOM_ENABLED ? loadRoomSession() : null;
+            const invite = getInviteCode();
+            if (saved && (!invite || invite === saved.code ||
+                !confirm('참여 중이던 방(' + saved.code + ')에서 나가고 초대받은 방(' + invite + ')에 입장할까요?'))) {
+                if (invite) { try { history.replaceState({}, '', window.location.origin + window.location.pathname); } catch (e) {} }
+                resumeRoomSession(saved);
+                return;
+            }
+            if (saved) abandonRoomSession(saved);
+            handleInviteLink();
         }
 
         function exitRoom() {
@@ -938,7 +1072,7 @@
 
         createBoard();
         setupRoomUI();
-        handleInviteLink();
+        startRoomFeatures();
     </script>
 </body>
 </html>
